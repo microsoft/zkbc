@@ -6,6 +6,12 @@ This is an example codebase for the summer internship project by Tobin South at 
 
 In a world of increasing closed-source commercial machine learning models, statements of benchmark performance from model providers must be taken at face value. These benchmarks results – whether over task accuracies, fairness and bias evaluations, or safety checks – are traditionally impossible to verify by a model end-user without the costly or infeasible process of re-performing the benchmark on black-box model outputs. This work presents a method of verifiable model benchmarking using model inference through zkSNARKs. The resulting zero-knowledge computational proofs of model outputs over datasets can be packaged into verifiable attestations showing that models with fixed private weights achieved stated performance or fairness metrics over public inputs. These verifiable attestations can be performed on any standard neural network model with varying compute requirements. This presents a new transparency paradigm in verifiable benchmarking of private models. 
 
+## Build and run
+
+1. Clone & build the rust version of _ezkl_ and then pyezkl. Follow the installation instructions in the README. `git clone https://github.com/zkonduit/ezkl.git`
+2. Get an onnx version of a model you want to run.  For example:
+* Use `save_onnx.py` on the `https://github.com/AmrElsersy/Emotions-Recognition.git` repo.
+
 
 ## Contributing
 
