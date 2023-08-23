@@ -1,14 +1,11 @@
-# Project
+# Zero Knowledge Benchmarking Checking (zkbc)
 
-> This repo has been populated by an initial template to help get you started. Please
-> make sure to update the content to build a great experience for community-building.
+This is an example codebase for the summer internship project by Tobin South at Microsoft Research in Redmond. This codebase is not a complete collection of work on the topic and more code will be made available after publication of an academic paper on the topic.
 
-As the maintainer of this project, please make a few updates:
+## Abstract
 
-- Improving this README.MD file to provide a great experience
-- Updating SUPPORT.MD with content about this project's support experience
-- Understanding the security reporting process in SECURITY.MD
-- Remove this section from the README
+In a world of increasing closed-source commercial machine learning models, statements of benchmark performance from model providers must be taken at face value. These benchmarks results – whether over task accuracies, fairness and bias evaluations, or safety checks – are traditionally impossible to verify by a model end-user without the costly or infeasible process of re-performing the benchmark on black-box model outputs. This work presents a method of verifiable model benchmarking using model inference through zkSNARKs. The resulting zero-knowledge computational proofs of model outputs over datasets can be packaged into verifiable attestations showing that models with fixed private weights achieved stated performance or fairness metrics over public inputs. These verifiable attestations can be performed on any standard neural network model with varying compute requirements. This presents a new transparency paradigm in verifiable benchmarking of private models. 
+
 
 ## Contributing
 
@@ -31,3 +28,7 @@ trademarks or logos is subject to and must follow
 [Microsoft's Trademark & Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks/usage/general).
 Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship.
 Any use of third-party trademarks or logos are subject to those third-party's policies.
+
+## Thanks and contribution
+
+Most of the work included in this repo was based on prior work in other repositories by Tobin South. Thanks goes to Shayla Nguyen for early idea incubation, dante & Jason Morton for support and collaboration, and Christian Paquin for mentorship.
