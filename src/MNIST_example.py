@@ -85,12 +85,12 @@ os.system("ezkl calibrate-settings -M MNIST/network.onnx -D MNIST/input.json --s
 os.system("ezkl compile-model -M MNIST/network.onnx -S MNIST/settings.json --compiled-model MNIST/network.ezkl" + pipstd('setup'))
 os.system("ezkl gen-witness -M MNIST/network.ezkl -D MNIST/input.json --output MNIST/witnessRandom.json --settings-path MNIST/settings.json" + pipstd('setup'))
 os.system("ezkl mock -M MNIST/network.ezkl --witness MNIST/witnessRandom.json --settings-path MNIST/settings.json" + pipstd('setup')) 
-os.system(f"ezkl setup -M MNIST/network.ezkl --srs-path={SRS_SMALL_PATH} --vk-path=vk.key --pk-path=pk.key --settings-path=MNIST/settings.json" + pipstd('setup'))
+os.system(f"ezkl setup -M MNIST/network.ezkl --srs-path={SRS_SMALL_PATH} --vk-path=GPT2/vk.key --pk-path=GPT2/pk.key --settings-path=MNIST/settings.json" + pipstd('setup'))
 os.system("rm MNIST/witnessRandom.json") # remove fake inputs
 
 if DEBUG:
     # this will test that proving is fully working (beyond just the mock)
-    os.system(f"RUST_BACKTRACE=1 ezkl prove -M MNIST/network.ezkl --srs-path={SRS_SMALL_PATH} --witness MNIST/witnessRandom.json --pk-path=pk.key --settings-path=MNIST/settings.json --proof-path=proof.proof --strategy='accum'"+ pipstd('setup'))
+    os.system(f"RUST_BACKTRACE=1 ezkl prove -M MNIST/network.ezkl --srs-path={SRS_SMALL_PATH} --witness MNIST/witnessRandom.json --pk-path=GPT2/pk.key --settings-path=MNIST/settings.json --proof-path=proof.proof --strategy='accum'"+ pipstd('setup'))
     os.system("rm proof.proof")
 
 # Make the data for inference
@@ -118,7 +118,7 @@ for i, (image, label) in enumerate(tqdm(test_loader, desc="Exporting data")):
 # os.system(f"ezkl calibrate-settings -M MNIST/network.onnx --data {input_filename} --settings-path=MNIST/settings.json > /dev/null")
 # os.system("ezkl compile-model -M MNIST/network.onnx -S MNIST/settings.json --compiled-model MNIST/network.ezkl > /dev/null")
 # os.system(f"ezkl gen-witness -M MNIST/network.ezkl --data {input_filename} --output MNIST/witnessRandom.json --settings-path MNIST/settings.json > /dev/null")
-# os.system(f"ezkl setup -M MNIST/network.ezkl --srs-path={SRS_SMALL_PATH} --vk-path=vk.key --pk-path=pk.key --settings-path=MNIST/settings.json" + pipstd('setup'))
+# os.system(f"ezkl setup -M MNIST/network.ezkl --srs-path={SRS_SMALL_PATH} --vk-path=GPT2/vk.key --pk-path=GPT2/pk.key --settings-path=MNIST/settings.json" + pipstd('setup'))
 # os.system("ezkl mock -M MNIST/network.ezkl --witness MNIST/witnessRandom.json --settings-path MNIST/settings.json" + pipstd('setup')) 
 
 ## 3.3 Loop and prove
@@ -127,10 +127,10 @@ for input_file in tqdm(np.random.choice(glob.glob("data/ezkl_inputs/*.json"), 50
     proof_path = f"data/ezkl_proofs/MLP{input_file[22:-5]}.proof"
     witness_path = f"data/ezkl_witnesses/witness{input_file[22:-5]}.json"
     os.system(f"ezkl gen-witness -M MNIST/network.ezkl --data {input_file} --output {witness_path} --settings-path=MNIST/settings.json" + pipstd('prove'))
-    res = os.system(f"ezkl prove -M MNIST/network.ezkl --witness {witness_path} --pk-path=pk.key --proof-path={proof_path} --srs-path={SRS_SMALL_PATH} --settings-path=MNIST/settings.json --strategy='accum'" + pipstd('prove'))
+    res = os.system(f"ezkl prove -M MNIST/network.ezkl --witness {witness_path} --pk-path=GPT2/pk.key --proof-path={proof_path} --srs-path={SRS_SMALL_PATH} --settings-path=MNIST/settings.json --strategy='accum'" + pipstd('prove'))
     if res!=0: print(f"Prove error on {input_file[22:-5]}, error {res}")
 
 
 ## 3.4 Quickly confirm one of these proofs verifies
 proof_path = glob.glob("data/ezkl_proofs/*.proof")[0]
-os.system(f"ezkl verify --settings-path MNIST/settings.json --proof-path {proof_path} --vk-path vk.key --srs-path {SRS_SMALL_PATH}")
+os.system(f"ezkl verify --settings-path MNIST/settings.json --proof-path {proof_path} --vk-path GPT2/vk.key --srs-path {SRS_SMALL_PATH}")
