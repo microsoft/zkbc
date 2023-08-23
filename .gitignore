@@ -1,0 +1,8 @@
+kzgs/
+ezkl/
+
+src/MNIST
+
+.DS_Store
+*.pyc
+*/__pycache__/
