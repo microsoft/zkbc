@@ -1,8 +1,25 @@
+# We're we store ezkl build and proof SRS files
 kzgs/
 ezkl/
 
+# Working directories 
 src/MNIST
+src/GPT2
 
+# Standard ignores
 .DS_Store
 *.pyc
 */__pycache__/
+
+
+# Proof files
+*.json
+*.onnx
+*.params
+*.key
+*.proof
+*_results.csv
+*.pb
+*.srs
+*.csv
+*.ezkl
