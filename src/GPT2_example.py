@@ -33,7 +33,7 @@ print(f"Total model params: {params}\nTotal model MACs (FLOPs): {macs}")
 
 from utils.export import export
 
-export(model, input_array=x, onnx_filename="GPT2/gpt2.onnx", input_filename="GPT2/GPT2/input.json")
+export(model, input_array=x, onnx_filename="GPT2/gpt2.onnx", input_filename="GPT2/input.json")
 
 # Now we run the setup + calibration + witness generation
 import ezkl, os
