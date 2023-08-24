@@ -8,9 +8,10 @@ import numpy as np
 import os
 import glob, json
 from models.VariableCNN import VariableCNN
+import ezkl
 
 DEBUG = True
-SRS_SMALL_PATH = '../kzgs/kzg17.srs' # You may need to generate this
+SRS_SMALL_PATH = '../../kzgs/kzg16.srs' # You may need to generate this
 LOGGING = True
 os.makedirs('MNIST/logs', exist_ok=True)
 pipstd = lambda fname: f" 2>&1 | tee MNIST/logs/{fname}.log" if LOGGING else ""
@@ -31,6 +32,7 @@ test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=8, shuffle=Fa
 
 model = VariableCNN(nlayer=1, output_size=10)
 device = torch.device("cuda" if torch.cuda.is_available() else "mps" if  torch.backends.mps.is_available() else "cpu")
+device = "cpu"
 model = model.to(device)
 
 # Now we train it
@@ -74,7 +76,7 @@ os.system(f"echo '{label_accuracy}'"+pipstd('setup'))
 
 ## 3. Export the model and data for ezkl to use
 model.to("cpu")
-example_input = images[-1].to("cpu")
+example_input = next(iter(test_loader))[0][0].to("cpu")
 from utils.export import export
 export(model, input_array=example_input, onnx_filename="MNIST/network.onnx", input_filename="MNIST/input.json")
 
@@ -85,21 +87,20 @@ os.system("ezkl calibrate-settings -M MNIST/network.onnx -D MNIST/input.json --s
 os.system("ezkl compile-model -M MNIST/network.onnx -S MNIST/settings.json --compiled-model MNIST/network.ezkl" + pipstd('setup'))
 os.system("ezkl gen-witness -M MNIST/network.ezkl -D MNIST/input.json --output MNIST/witnessRandom.json --settings-path MNIST/settings.json" + pipstd('setup'))
 os.system("ezkl mock -M MNIST/network.ezkl --witness MNIST/witnessRandom.json --settings-path MNIST/settings.json" + pipstd('setup')) 
-os.system(f"ezkl setup -M MNIST/network.ezkl --srs-path={SRS_SMALL_PATH} --vk-path=GPT2/vk.key --pk-path=GPT2/pk.key --settings-path=MNIST/settings.json" + pipstd('setup'))
-os.system("rm MNIST/witnessRandom.json") # remove fake inputs
+os.system(f"ezkl setup -M MNIST/network.ezkl --srs-path={SRS_SMALL_PATH} --vk-path=MNIST/vk.key --pk-path=MNIST/pk.key --settings-path=MNIST/settings.json" + pipstd('setup'))
 
 if DEBUG:
     # this will test that proving is fully working (beyond just the mock)
-    os.system(f"RUST_BACKTRACE=1 ezkl prove -M MNIST/network.ezkl --srs-path={SRS_SMALL_PATH} --witness MNIST/witnessRandom.json --pk-path=GPT2/pk.key --settings-path=MNIST/settings.json --proof-path=proof.proof --strategy='accum'"+ pipstd('setup'))
-    os.system("rm proof.proof")
+    os.system(f"RUST_BACKTRACE=1 ezkl prove -M MNIST/network.ezkl --srs-path={SRS_SMALL_PATH} --witness MNIST/witnessRandom.json --pk-path=MNIST/pk.key --settings-path=MNIST/settings.json --proof-path=MNIST/proof.proof --strategy='accum'"+ pipstd('setup'))
+    os.system("rm MNIST/proof.proof")
 
 # Make the data for inference
 print("Saving real data for ezkl inference")
-os.makedirs('data/ezkl_inputs', exist_ok=True)
-os.makedirs('data/ezkl_witnesses', exist_ok=True)
-os.makedirs('data/ezkl_proofs', exist_ok=True)
+os.makedirs('MNIST/data/ezkl_inputs', exist_ok=True)
+os.makedirs('MNIST/data/ezkl_witnesses', exist_ok=True)
+os.makedirs('MNIST/data/ezkl_proofs', exist_ok=True)
 
-test_loader = torch.utils.data.DataLoader(train_dataset, batch_size=1, shuffle=False)
+test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=1, shuffle=False)
 for i, (image, label) in enumerate(tqdm(test_loader, desc="Exporting data")):
     # remove batch dimension
     output = model(image)
@@ -109,7 +110,7 @@ for i, (image, label) in enumerate(tqdm(test_loader, desc="Exporting data")):
     data = dict(input_data = [data_array],
                 output_data = [((o).detach().numpy()).reshape([-1]).tolist() for o in output])
 
-    input_filename = f'data/ezkl_inputs/input_{i}_lab_{label.item()}.json'
+    input_filename = f'MNIST/data/ezkl_inputs/input_{i}_lab_{label.item()}.json'
     json.dump( data, open( input_filename, 'w' ) )
     if i ==1000: break
 
@@ -118,19 +119,19 @@ for i, (image, label) in enumerate(tqdm(test_loader, desc="Exporting data")):
 # os.system(f"ezkl calibrate-settings -M MNIST/network.onnx --data {input_filename} --settings-path=MNIST/settings.json > /dev/null")
 # os.system("ezkl compile-model -M MNIST/network.onnx -S MNIST/settings.json --compiled-model MNIST/network.ezkl > /dev/null")
 # os.system(f"ezkl gen-witness -M MNIST/network.ezkl --data {input_filename} --output MNIST/witnessRandom.json --settings-path MNIST/settings.json > /dev/null")
-# os.system(f"ezkl setup -M MNIST/network.ezkl --srs-path={SRS_SMALL_PATH} --vk-path=GPT2/vk.key --pk-path=GPT2/pk.key --settings-path=MNIST/settings.json" + pipstd('setup'))
+# os.system(f"ezkl setup -M MNIST/network.ezkl --srs-path={SRS_SMALL_PATH} --vk-path=MNIST/vk.key --pk-path=MNIST/pk.key --settings-path=MNIST/settings.json" + pipstd('setup'))
 # os.system("ezkl mock -M MNIST/network.ezkl --witness MNIST/witnessRandom.json --settings-path MNIST/settings.json" + pipstd('setup')) 
 
 ## 3.3 Loop and prove
 print("Proving over real data")
-for input_file in tqdm(np.random.choice(glob.glob("data/ezkl_inputs/*.json"), 500)):
-    proof_path = f"data/ezkl_proofs/MLP{input_file[22:-5]}.proof"
-    witness_path = f"data/ezkl_witnesses/witness{input_file[22:-5]}.json"
+for input_file in tqdm(glob.glob("MNIST/data/ezkl_inputs/*.json")):
+    proof_path = f"MNIST/data/ezkl_proofs/MLP{input_file.split('input_')[-1][:-5]}.proof"
+    witness_path = f"MNIST/data/ezkl_witnesses/{input_file.split('input_')[-1][:-5]}.json"
     os.system(f"ezkl gen-witness -M MNIST/network.ezkl --data {input_file} --output {witness_path} --settings-path=MNIST/settings.json" + pipstd('prove'))
-    res = os.system(f"ezkl prove -M MNIST/network.ezkl --witness {witness_path} --pk-path=GPT2/pk.key --proof-path={proof_path} --srs-path={SRS_SMALL_PATH} --settings-path=MNIST/settings.json --strategy='accum'" + pipstd('prove'))
-    if res!=0: print(f"Prove error on {input_file[22:-5]}, error {res}")
+    res = os.system(f"ezkl prove -M MNIST/network.ezkl --witness {witness_path} --pk-path=MNIST/pk.key --proof-path={proof_path} --srs-path={SRS_SMALL_PATH} --settings-path=MNIST/settings.json --strategy='accum'" + pipstd('prove'))
+    if res!=0: print(f"Prove error on {input_file.split('input_')[-1][:-5]}, error {res}")
 
 
 ## 3.4 Quickly confirm one of these proofs verifies
-proof_path = glob.glob("data/ezkl_proofs/*.proof")[0]
-os.system(f"ezkl verify --settings-path MNIST/settings.json --proof-path {proof_path} --vk-path GPT2/vk.key --srs-path {SRS_SMALL_PATH}")
+proof_path = glob.glob("MNIST/data/ezkl_proofs/*.proof")[0]
+os.system(f"ezkl verify --settings-path MNIST/settings.json --proof-path {proof_path} --vk-path MNIST/vk.key --srs-path {SRS_SMALL_PATH}")
