@@ -9,8 +9,9 @@ In a world of increasing closed-source commercial machine learning models, state
 ## Build and run
 
 1. Clone & build the rust version of _ezkl_ and then pyezkl. Follow the installation instructions in the README. `git clone https://github.com/zkonduit/ezkl.git`
-2. Get an onnx version of a model you want to run.  For example:
-* Use `save_onnx.py` on the `https://github.com/AmrElsersy/Emotions-Recognition.git` repo.
+2. Generate structured reference strings (SRS) files in `/kzgs` corresponding to the model size you need (If you don't know this yet, come back after you've calibrated a model).
+3. Run the example files in `/src`
+4. Choose a new model or dataset to run and follow the example process to get an onnx version of the model and generate inference proofs on it.
 
 
 ## Contributing
