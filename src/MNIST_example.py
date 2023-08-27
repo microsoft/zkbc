@@ -125,7 +125,7 @@ for i, (image, label) in enumerate(tqdm(test_loader, desc="Exporting data")):
 ## 3.3 Loop and prove
 print("Proving over real data")
 for input_file in tqdm(glob.glob("MNIST/data/ezkl_inputs/*.json")):
-    proof_path = f"MNIST/data/ezkl_proofs/MLP{input_file.split('input_')[-1][:-5]}.proof"
+    proof_path = f"MNIST/data/ezkl_proofs/MNIST{input_file.split('input_')[-1][:-5]}.proof"
     witness_path = f"MNIST/data/ezkl_witnesses/{input_file.split('input_')[-1][:-5]}.json"
     os.system(f"ezkl gen-witness -M MNIST/network.ezkl --data {input_file} --output {witness_path} --settings-path=MNIST/settings.json" + pipstd('prove'))
     res = os.system(f"ezkl prove -M MNIST/network.ezkl --witness {witness_path} --pk-path=MNIST/pk.key --proof-path={proof_path} --srs-path={SRS_SMALL_PATH} --settings-path=MNIST/settings.json --strategy='accum'" + pipstd('prove'))
