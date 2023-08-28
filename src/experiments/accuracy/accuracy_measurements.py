@@ -1,4 +1,4 @@
-# This file contains some toolkits for measures the differences (errors) between the data passes into a proof and the data that comes out of a proof. It also contains some tools for visualizing the errors.
+# This file contains some toolkits for measures the differences (errors) between the data passed into a proof and the data that comes out of a proof. It also contains some tools for visualizing the errors across standard statistical checks.
 
 # The bottom of the file includes real results analysis.
 
@@ -7,7 +7,6 @@ from glob import glob # the best package for finding files
 import ezkl
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-
 
 def proof_file_to_io(prooffilename: str, scale: int) -> (np.array, np.array):
     """
@@ -31,8 +30,8 @@ def proof_file_to_io(prooffilename: str, scale: int) -> (np.array, np.array):
 def input_file_to_io(inputfilename: str) -> (np.array, np.array):
     """This will take an input.json file and return the input and output values."""
     with open(inputfilename, 'r') as f:
-        input = json.load(f)
-    return np.array(input['input_data']).flatten(), np.array(input['output_data']).flatten()
+        input_file = json.load(f)
+    return np.array(input_file['input_data']).flatten(), np.array(input_file['output_data']).flatten() if 'output_data' in input_file else None
 
 
 def calculate_differences(real_values: np.array, comparison_values: np.array, sigma: int = 4):
@@ -53,7 +52,7 @@ def calculate_differences(real_values: np.array, comparison_values: np.array, si
     return data_mse, len(high_sigma_points), se, high_sigma_points, std_of_fsp
 
 
-def accuracy_analysis(real_values: np.array, comparison_values: np.array, plot_statistical_checks:bool = True, sigma: int = 6):
+def accuracy_analysis(real_values: np.array, comparison_values: np.array, plot_statistical_checks:bool = True, sigma: int = 4):
     """
     This will look at the differences between the real values and the output values based on MSE (mean squared error). It will return overall performance and can will show analysis tools to examine errors that deviate significantly. 
 
@@ -71,6 +70,8 @@ def accuracy_analysis(real_values: np.array, comparison_values: np.array, plot_s
     max_error = np.sqrt(np.max(se))
 
     max_error_as_a_percent_of_range = max_error / (np.max(real_values) - np.min(real_values))
+
+    data_mse_as_a_percent_of_range = data_mse / (np.max(real_values) - np.min(real_values))
 
     median_value_of_high_sigma = np.median(real_values[high_sigma_points])
 
@@ -134,10 +135,40 @@ def accuracy_analysis(real_values: np.array, comparison_values: np.array, plot_s
         plt.tight_layout()
         plt.show()
 
-    return data_mse, max_error, max_error_as_a_percent_of_range
+    return data_mse, max_error, max_error_as_a_percent_of_range, data_mse_as_a_percent_of_range
 
 
-# We will measure accuracy a CNN  model on MNIST data. 
+def accuracy_results(prooffilename: str, inputfilename: str, settingsfilename:str = None, scale: int | None = None, plot_statistical_checks:bool = True, sigma: int = 4):
+
+    if settingsfilename is not None:
+        with open(settingsfilename, 'r') as f:
+            settings = json.load(f)
+        scale = settings['run_args']['scale']
+    elif scale is None:
+        raise ValueError("Must provide either settingsfilename or scale")
+    
+
+    proof_input, proof_output = proof_file_to_io(prooffilename, scale)
+    input_input, input_output = input_file_to_io(inputfilename)
+
+    accuracy_analysis(input_input, proof_input, plot_statistical_checks=plot_statistical_checks, sigma=sigma)
+    output_accuracy = accuracy_analysis(input_output, proof_output, plot_statistical_checks=plot_statistical_checks, sigma=sigma)
+    return output_accuracy
+
+
+# Example with CNN with random inputs
+prooffilename = 'example_files/proof.proof'
+inputfilename = 'example_files/input.json'
+settingsfilename = 'example_files/settings.json'
+
+accuracy_results(prooffilename, inputfilename, settingsfilename)
+
+
+# Example on pretrained GPT2
+
+
+
+# Example with MNIST full dataset and simple CNN
 # Make sure you first run the MNIST_example.py script to generate the data and proofs.
 proof_files = glob("../../MNIST/data/ezkl_proofs/*.proof")
 
@@ -163,10 +194,3 @@ accuracy_analysis(proof_output, input_output)
 
 accuracy_analysis(all_input_inputs, all_proof_inputs)
 accuracy_analysis(all_input_output, all_proof_output)
-
-
-
-
-
-# Load in GPT2 input
-proof_file = 
