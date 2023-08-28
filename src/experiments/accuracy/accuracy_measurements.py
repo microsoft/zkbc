@@ -1,12 +1,12 @@
-# We will measure accuracy of the model on the MNIST data. 
-# Make sure you first run the MNIST_example.py script to generate the data and proofs.
+# This file contains some toolkits for measures the differences (errors) between the data passes into a proof and the data that comes out of a proof. It also contains some tools for visualizing the errors.
+
+# The bottom of the file includes real results analysis.
 
 import json, os, numpy as np
 from glob import glob # the best package for finding files
 import ezkl
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-
 
 
 def proof_file_to_io(prooffilename: str, scale: int) -> (np.array, np.array):
@@ -137,6 +137,8 @@ def accuracy_analysis(real_values: np.array, comparison_values: np.array, plot_s
     return data_mse, max_error, max_error_as_a_percent_of_range
 
 
+# We will measure accuracy a CNN  model on MNIST data. 
+# Make sure you first run the MNIST_example.py script to generate the data and proofs.
 proof_files = glob("../../MNIST/data/ezkl_proofs/*.proof")
 
 all_proof_inputs, all_proof_output, all_input_inputs, all_input_output = [], [], [], []
@@ -163,3 +165,8 @@ accuracy_analysis(all_input_inputs, all_proof_inputs)
 accuracy_analysis(all_input_output, all_proof_output)
 
 
+
+
+
+# Load in GPT2 input
+proof_file = 
