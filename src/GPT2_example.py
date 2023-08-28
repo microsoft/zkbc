@@ -39,7 +39,7 @@ export(model, input_array=x, onnx_filename="GPT2/gpt2.onnx", input_filename="GPT
 import ezkl, os
 SRS_PATH = "../kzgs/kzg25.srs"
 
-os.system("ezkl gen-settings -M GPT2/gpt2.onnx --settings-path=GPT2/settings.json --input-visibility='public'" )
+os.system("ezkl gen-settings -M GPT2/gpt2.onnx --settings-path=GPT2/settings.json --input-visibility='public' --logrows 25" )
 os.system("ezkl calibrate-settings -M GPT2/gpt2.onnx -D GPT2/input.json --settings-path=GPT2/settings.json --target=resources")
 os.system("ezkl compile-model -M GPT2/gpt2.onnx -S GPT2/settings.json --compiled-model GPT2/gpt2.ezkl")
 os.system("ezkl gen-witness -M GPT2/gpt2.ezkl -D GPT2/input.json --output GPT2/witnesstokens.json --settings-path GPT2/settings.json")
