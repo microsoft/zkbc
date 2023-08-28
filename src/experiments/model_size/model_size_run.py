@@ -12,7 +12,7 @@ import timeit
 sys.path.append('../..')
 from utils.export import export
 from models.VariableCNN import VariableCNN
-from models.VariableMLP import MLP
+from models.VariableMLP import VariableMLP
 from models.VariableLSTM import VariableLSTM
 from models.SimpleTransformer import SimpleTransformer
 
@@ -22,6 +22,7 @@ SRS_SMALL_PATH = f'../../../kzgs/kzg{LOGROWS_SMALL}.srs' # You may need to gener
 LOGGING = True
 pipstd = lambda fname: f" 2>&1 | tee logs/{fname}.log" if LOGGING else ""
 os.makedirs('logs', exist_ok=True)
+os.makedirs('runfiles', exist_ok=True)
 
 
 # run gen-srs if zkg20.params doesn't exist
@@ -32,7 +33,7 @@ if not os.path.exists(SRS_SMALL_PATH):
 
 def setup_and_prove(modeltype, nlayer):
     if modeltype == 'CNN':
-        model = VariableCNN(int(1.5*nlayer))
+        model = VariableCNN(nlayer)
         input_shape= [1,28,28]
         dummy_input = torch.randn(input_shape)
     elif modeltype == 'MLP':
@@ -44,8 +45,9 @@ def setup_and_prove(modeltype, nlayer):
         input_shape= [1,16,64+32*nlayer]
         dummy_input = torch.randn(input_shape)
     elif modeltype == 'LSTM':
-        model = VariableLSTM(nlayer)
-        input_shape= [10,128]
+        temp_nlayer = int(np.sqrt(nlayer)/2)
+        model = VariableLSTM(nlayer=temp_nlayer, input_size=8+8*nlayer, hidden_size=8+8*temp_nlayer)
+        input_shape= [3+nlayer,8+8*nlayer]
         dummy_input = torch.randn(input_shape)
     else:
         raise ValueError("modeltype must be one of CNN, MLP, Attn, LSTM")
@@ -54,19 +56,19 @@ def setup_and_prove(modeltype, nlayer):
     export(model, input_shape= input_shape)
 
     logs_file = pipstd(f'{modeltype}_prework_{nlayer}')
-    os.system("ezkl table -M network.onnx" + logs_file)
-    os.system("ezkl gen-settings -M network.onnx --settings-path=settings.json --input-visibility='public'"+logs_file )
-    os.system("ezkl calibrate-settings -M network.onnx -D input.json --settings-path=settings.json --target=resources"+logs_file)
-    os.system("ezkl compile-model -M network.onnx -S settings.json --compiled-model network.ezkl"+logs_file)
-    os.system("ezkl gen-witness -M network.ezkl -D input.json --output witnessRandom.json --settings-path settings.json"+logs_file)
-    os.system("ezkl mock -M network.ezkl --witness witnessRandom.json --settings-path settings.json" + logs_file) 
+    os.system(f"ezkl table -M runfiles/{modeltype+str(nlayer)}.onnx" + logs_file)
+    os.system(f"ezkl gen-settings -M runfiles/{modeltype+str(nlayer)}.onnx --settings-path=settings.json --input-visibility='public'"+logs_file )
+    os.system(f"ezkl calibrate-settings -M runfiles/{modeltype+str(nlayer)}.onnx -D runfiles/input{modeltype+str(nlayer)}.json --settings-path=settings.json --target=resources"+logs_file)
+    os.system(f"ezkl compile-model -M runfiles/{modeltype+str(nlayer)}.onnx -S settings.json --compiled-model runfiles/{modeltype+str(nlayer)}.ezkl"+logs_file)
+    os.system(f"ezkl gen-witness -M runfiles/{modeltype+str(nlayer)}.ezkl -D runfiles/input{modeltype+str(nlayer)}.json --output runfiles/witness_{modeltype+str(nlayer)}.json --settings-path settings.json"+logs_file)
+    os.system(f"ezkl mock -M runfiles/{modeltype+str(nlayer)}.ezkl --witness runfiles/witness_{modeltype+str(nlayer)}.json --settings-path settings.json" + logs_file) 
     os.system(f"cat settings.json >> logs/{modeltype}_prework_{nlayer}.log")
 
-    time_to_setup = timeit.timeit(lambda: os.system(f"ezkl setup -M network.ezkl --srs-path={SRS_SMALL_PATH} --vk-path=vk.key --pk-path=pk.key --settings-path=settings.json" + pipstd(f'{modeltype}_setup_{nlayer}')),  number=1)
+    time_to_setup = timeit.timeit(lambda: os.system(f"ezkl setup -M runfiles/{modeltype+str(nlayer)}.ezkl --srs-path={SRS_SMALL_PATH} --vk-path=vk.key --pk-path=pk.key --settings-path=settings.json" + pipstd(f'{modeltype}_setup_{nlayer}')),  number=1)
 
     os.makedirs('proofs', exist_ok=True)
     proof_file = f"proofs/{modeltype}_proof_{nlayer}.proof"
-    time_to_prove = timeit.timeit(lambda: os.system(f"ezkl prove -M network.ezkl --srs-path={SRS_SMALL_PATH} --witness witnessRandom.json --pk-path=pk.key --settings-path=settings.json --proof-path={proof_file} --strategy='accum'"+ pipstd(f'{modeltype}_prove_{nlayer}')), number=1)
+    time_to_prove = timeit.timeit(lambda: os.system(f"ezkl prove -M runfiles/{modeltype+str(nlayer)}.ezkl --srs-path={SRS_SMALL_PATH} --witness runfiles/witness_{modeltype+str(nlayer)}.json --pk-path=pk.key --settings-path=settings.json --proof-path={proof_file} --strategy='accum'"+ pipstd(f'{modeltype}_prove_{nlayer}')), number=1)
 
     proof_size = os.path.getsize(proof_file)
     vk_size = os.path.getsize('vk.key')
@@ -97,3 +99,51 @@ for nlayer in tqdm(ranges):
 
 print("Done with local experiments")
 print(results)
+
+
+
+
+
+# # This is just code to get the sizing right
+# def sizes(modeltype, nlayer):
+#     if modeltype == 'CNN':
+#         model = VariableCNN(nlayer)
+#         input_shape= [1,28,28]
+#         dummy_input = torch.randn(input_shape)
+#     elif modeltype == 'MLP':
+#         model = MLP(nlayer+int((nlayer**2)/2))
+#         input_shape= [1,256]
+#         dummy_input = torch.randn(input_shape)
+#     elif modeltype == 'Attn':
+#         model = SimpleTransformer(int(np.sqrt(nlayer)/2)+1, d_model=64+32*nlayer)
+#         input_shape= [1,16,64+32*nlayer]
+#         dummy_input = torch.randn(input_shape)
+#     elif modeltype == 'LSTM':
+#         temp_nlayer = int(np.sqrt(nlayer)/2)
+#         model = VariableLSTM(nlayer=temp_nlayer, input_size=8+8*nlayer, hidden_size=8+8*temp_nlayer)
+#         input_shape= [3+nlayer,8+8*nlayer]
+#         dummy_input = torch.randn(input_shape)
+#     else:
+#         raise ValueError("modeltype must be one of CNN, MLP, Attn, LSTM")
+    
+#     macs, params = profile(model, inputs=(dummy_input, ))
+#     return macs, params
+
+# size_results = []
+# ranges = list(range(0, 20)) + list(range(20, 30, 2)) + list(range(30, 41, 5))
+# for nlayer in tqdm(ranges):
+#     for modeltype in ['CNN', 'MLP', 'Attn', 'LSTM']:
+#         print("Running", modeltype, nlayer)
+#         try:
+#             macs, params = sizes(modeltype, nlayer)
+#             size_results.append([macs, params, nlayer, modeltype])
+#         except Exception as e:
+#             print("Failed with", e)
+
+
+# import seaborn as sns
+# import pandas as pd
+# size_results_df = pd.DataFrame(size_results, columns=['macs', 'params', 'nlayer', 'modeltype'])
+# sns.scatterplot(size_results_df, x='nlayer', y='macs', hue='modeltype')
+
+# size_results_df.sort_values(by='nlayer', ascending=False)
