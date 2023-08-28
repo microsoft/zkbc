@@ -5,7 +5,7 @@ import numpy as np
 import os, sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import pickle
+import pickle, json
 from thop import profile
 import timeit
 
@@ -17,19 +17,13 @@ from models.VariableLSTM import VariableLSTM
 from models.SimpleTransformer import SimpleTransformer
 
 DEBUG = True
-LOGROWS_SMALL = 21
-SRS_SMALL_PATH = f'../../../kzgs/kzg{LOGROWS_SMALL}.srs' # You may need to generate this
+AVAILABLE_LOGROWS = [16,17,18, 19, 21, 25]
+LOGROWS_PATH = lambda lr: f'../../../../kzgs/kzg{lr}.srs' # You may need to generate this
+NEAREST_LOGROWS_ABOVE = lambda lr: LOGROWS_PATH(min([x for x in AVAILABLE_LOGROWS if x >= lr]))
 LOGGING = True
 pipstd = lambda fname: f" 2>&1 | tee logs/{fname}.log" if LOGGING else ""
 os.makedirs('logs', exist_ok=True)
 os.makedirs('runfiles', exist_ok=True)
-
-
-# run gen-srs if zkg20.params doesn't exist
-if not os.path.exists(SRS_SMALL_PATH):
-    print("Generating SRS params")
-    os.system(f"ezkl gen-srs --logrows {LOGROWS_SMALL} --srs-path={SRS_SMALL_PATH}")
-    print("Done generating SRS params")
 
 def setup_and_prove(modeltype, nlayer):
     if modeltype == 'CNN':
@@ -37,7 +31,7 @@ def setup_and_prove(modeltype, nlayer):
         input_shape= [1,28,28]
         dummy_input = torch.randn(input_shape)
     elif modeltype == 'MLP':
-        model = MLP(nlayer+int((nlayer**2)/2))
+        model = VariableMLP(nlayer+int((nlayer**2)/2))
         input_shape= [1,256]
         dummy_input = torch.randn(input_shape)
     elif modeltype == 'Attn':
@@ -53,7 +47,7 @@ def setup_and_prove(modeltype, nlayer):
         raise ValueError("modeltype must be one of CNN, MLP, Attn, LSTM")
     
     macs, params = profile(model, inputs=(dummy_input, ))
-    export(model, input_shape= input_shape)
+    export(model, input_shape= input_shape, onnx_filename=f'runfiles/{modeltype+str(nlayer)}.onnx', input_filename=f'runfiles/input{modeltype+str(nlayer)}.json')
 
     logs_file = pipstd(f'{modeltype}_prework_{nlayer}')
     os.system(f"ezkl table -M runfiles/{modeltype+str(nlayer)}.onnx" + logs_file)
@@ -64,11 +58,17 @@ def setup_and_prove(modeltype, nlayer):
     os.system(f"ezkl mock -M runfiles/{modeltype+str(nlayer)}.ezkl --witness runfiles/witness_{modeltype+str(nlayer)}.json --settings-path settings.json" + logs_file) 
     os.system(f"cat settings.json >> logs/{modeltype}_prework_{nlayer}.log")
 
-    time_to_setup = timeit.timeit(lambda: os.system(f"ezkl setup -M runfiles/{modeltype+str(nlayer)}.ezkl --srs-path={SRS_SMALL_PATH} --vk-path=vk.key --pk-path=pk.key --settings-path=settings.json" + pipstd(f'{modeltype}_setup_{nlayer}')),  number=1)
+    # Read in settings to determin SRS file size
+    with open('settings.json', 'r') as f:
+        settings = json.load(f)
+        lr = settings['run_args']['logrows']
+        srs_path  = NEAREST_LOGROWS_ABOVE(lr)
+
+    time_to_setup = timeit.timeit(lambda: os.system(f"ezkl setup -M runfiles/{modeltype+str(nlayer)}.ezkl --srs-path={srs_path} --vk-path=vk.key --pk-path=pk.key --settings-path=settings.json" + pipstd(f'{modeltype}_setup_{nlayer}')),  number=1)
 
     os.makedirs('proofs', exist_ok=True)
     proof_file = f"proofs/{modeltype}_proof_{nlayer}.proof"
-    time_to_prove = timeit.timeit(lambda: os.system(f"ezkl prove -M runfiles/{modeltype+str(nlayer)}.ezkl --srs-path={SRS_SMALL_PATH} --witness runfiles/witness_{modeltype+str(nlayer)}.json --pk-path=pk.key --settings-path=settings.json --proof-path={proof_file} --strategy='accum'"+ pipstd(f'{modeltype}_prove_{nlayer}')), number=1)
+    time_to_prove = timeit.timeit(lambda: os.system(f"ezkl prove -M runfiles/{modeltype+str(nlayer)}.ezkl --srs-path={srs_path} --witness runfiles/witness_{modeltype+str(nlayer)}.json --pk-path=pk.key --settings-path=settings.json --proof-path={proof_file} --strategy='accum'"+ pipstd(f'{modeltype}_prove_{nlayer}')), number=1)
 
     proof_size = os.path.getsize(proof_file)
     vk_size = os.path.getsize('vk.key')
@@ -86,7 +86,7 @@ with open(FILENAME, 'w') as f:
 results = [] # For local runtime experiments
 ranges = list(range(2, 20)) + list(range(20, 30, 2)) + list(range(30, 41, 5))
 for nlayer in tqdm(ranges):
-    for modeltype in ['CNN', 'MLP', 'Attn']:
+    for modeltype in ['CNN', 'MLP', 'Attn', 'LSTM']:
         print("Running", modeltype, nlayer)
         try:
             result = setup_and_prove(modeltype, nlayer)

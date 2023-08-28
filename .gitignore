@@ -5,6 +5,9 @@ ezkl/
 # Working directories 
 src/MNIST
 src/GPT2
+src/experiments/model_size/logs
+src/experiments/model_size/proofs
+src/experiments/model_size/runfiles
 
 # Standard ignores
 .DS_Store
