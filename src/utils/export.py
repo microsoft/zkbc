@@ -57,9 +57,8 @@ def export(
 
     data_array = ((x).detach().numpy()).reshape([-1]).tolist()
 
-    data = dict(input_data = [data_array],)
-                # input_shapes = [input_shape],)
-                # output_data = [((o).detach().numpy()).reshape([-1]).tolist() for o in torch_out])
+    data = dict(input_data = [data_array],
+                output_data = [((o).detach().numpy()).reshape([-1]).tolist() for o in torch_out])
 
     # Serialize data into file:
     json.dump( data, open( input_filename, 'w' ) )
