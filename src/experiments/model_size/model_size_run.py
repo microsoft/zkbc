@@ -9,8 +9,7 @@ import pickle
 from thop import profile
 import timeit
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
-from attention_model import SimpleTransformer
+sys.path.append('../..')
 from utils.export import export
 from models.VariableCNN import VariableCNN
 from models.VariableMLP import MLP
@@ -18,8 +17,8 @@ from models.VariableLSTM import VariableLSTM
 from models.SimpleTransformer import SimpleTransformer
 
 DEBUG = True
-LOGROWS_SMALL = 25
-SRS_SMALL_PATH = f'../../kzgs/kzg{LOGROWS_SMALL}.srs' # You may need to generate this
+LOGROWS_SMALL = 21
+SRS_SMALL_PATH = f'../../../kzgs/kzg{LOGROWS_SMALL}.srs' # You may need to generate this
 LOGGING = True
 pipstd = lambda fname: f" 2>&1 | tee logs/{fname}.log" if LOGGING else ""
 os.makedirs('logs', exist_ok=True)
@@ -31,22 +30,25 @@ if not os.path.exists(SRS_SMALL_PATH):
     os.system(f"ezkl gen-srs --logrows {LOGROWS_SMALL} --srs-path={SRS_SMALL_PATH}")
     print("Done generating SRS params")
 
-
 def setup_and_prove(modeltype, nlayer):
     if modeltype == 'CNN':
-        model = CNN(int(1.5*nlayer))
-        dummy_input = torch.randn((1, 28, 28))
+        model = VariableCNN(int(1.5*nlayer))
         input_shape= [1,28,28]
+        dummy_input = torch.randn(input_shape)
     elif modeltype == 'MLP':
         model = MLP(nlayer+int((nlayer**2)/2))
-        dummy_input = torch.randn((1, 256))
         input_shape= [1,256]
+        dummy_input = torch.randn(input_shape)
     elif modeltype == 'Attn':
         model = SimpleTransformer(int(np.sqrt(nlayer)/2)+1, d_model=64+32*nlayer)
-        dummy_input = torch.randn((1, 16, 64+32*nlayer))
         input_shape= [1,16,64+32*nlayer]
+        dummy_input = torch.randn(input_shape)
+    elif modeltype == 'LSTM':
+        model = VariableLSTM(nlayer)
+        input_shape= [10,128]
+        dummy_input = torch.randn(input_shape)
     else:
-        raise ValueError("modeltype must be one of CNN, MLP, Attn")
+        raise ValueError("modeltype must be one of CNN, MLP, Attn, LSTM")
     
     macs, params = profile(model, inputs=(dummy_input, ))
     export(model, input_shape= input_shape)
