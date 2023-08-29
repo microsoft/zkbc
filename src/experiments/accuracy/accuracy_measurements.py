@@ -1,4 +1,4 @@
-# This file contains some toolkits for measures the differences (errors) between the data passed into a proof and the data that comes out of a proof. It also contains some tools for visualizing the errors across standard statistical checks.
+# This file contains some toolkits for measuring the differences (errors) between the data passed into a proof and the data that comes out of a proof. It also contains some tools for visualizing the errors across standard statistical checks.
 
 # The bottom of the file includes real results analysis.
 
@@ -138,7 +138,7 @@ def accuracy_analysis(real_values: np.array, comparison_values: np.array, plot_s
     return data_mse, max_error, max_error_as_a_percent_of_range, data_mse_as_a_percent_of_range
 
 
-def accuracy_results(prooffilename: str, inputfilename: str, settingsfilename:str = None, scale: int | None = None, plot_statistical_checks:bool = True, sigma: int = 4):
+def accuracy_results(prooffilename: str, inputfilename: str, settingsfilename: str | None = None, scale: int | None = None, plot_statistical_checks:bool = True, sigma: int = 4):
 
     if settingsfilename is not None:
         with open(settingsfilename, 'r') as f:
@@ -156,41 +156,43 @@ def accuracy_results(prooffilename: str, inputfilename: str, settingsfilename:st
     return output_accuracy
 
 
-# Example with CNN with random inputs
-prooffilename = 'example_files/proof.proof'
-inputfilename = 'example_files/input.json'
-settingsfilename = 'example_files/settings.json'
+if __name__ == "__main__":
+    # 1. Example with CNN with random inputs
+    prooffilename = 'example_files/proof.proof'
+    inputfilename = 'example_files/input.json'
+    settingsfilename = 'example_files/settings.json'
 
-accuracy_results(prooffilename, inputfilename, settingsfilename)
-
-
-# Example on pretrained GPT2
+    accuracy_results(prooffilename, inputfilename, settingsfilename)
 
 
 
-# Example with MNIST full dataset and simple CNN
-# Make sure you first run the MNIST_example.py script to generate the data and proofs.
-proof_files = glob("../../MNIST/data/ezkl_proofs/*.proof")
+    # 2. Example on single inference of pretrained GPT2
+    # First run GPT2_example.py
 
-all_proof_inputs, all_proof_output, all_input_inputs, all_input_output = [], [], [], []
-for prooffilename in tqdm(proof_files):
-    proof_input, proof_output = proof_file_to_io(prooffilename, 4)
-    inputfilename = prooffilename.replace(".proof", ".json").replace("ezkl_proofs", "ezkl_inputs").replace("/MLP", "/input_")
-    input_input, input_output = input_file_to_io(inputfilename)
 
-    all_proof_inputs.append(proof_input)
-    all_proof_output.append(proof_output)
-    all_input_inputs.append(input_input)
-    all_input_output.append(input_output)
+    # 3. Example with MNIST full dataset and simple CNN
+    # Make sure you first run the MNIST_example.py script to generate the data and proofs.
+    proof_files = glob("../../MNIST/data/ezkl_proofs/*.proof")
 
-all_proof_inputs = np.concatenate(all_proof_inputs).flatten()
-all_proof_output = np.concatenate(all_proof_output).flatten()
-all_input_inputs = np.concatenate(all_input_inputs).flatten()
-all_input_output = np.concatenate(all_input_output).flatten()
+    all_proof_inputs, all_proof_output, all_input_inputs, all_input_output = [], [], [], []
+    for prooffilename in tqdm(proof_files):
+        proof_input, proof_output = proof_file_to_io(prooffilename, 4)
+        inputfilename = prooffilename.replace(".proof", ".json").replace("ezkl_proofs", "ezkl_inputs").replace("/MLP", "/input_")
+        input_input, input_output = input_file_to_io(inputfilename)
 
-# Example from a singal proof
-accuracy_analysis(input_input, proof_input)
-accuracy_analysis(proof_output, input_output)
+        all_proof_inputs.append(proof_input)
+        all_proof_output.append(proof_output)
+        all_input_inputs.append(input_input)
+        all_input_output.append(input_output)
 
-accuracy_analysis(all_input_inputs, all_proof_inputs)
-accuracy_analysis(all_input_output, all_proof_output)
+    all_proof_inputs = np.concatenate(all_proof_inputs).flatten()
+    all_proof_output = np.concatenate(all_proof_output).flatten()
+    all_input_inputs = np.concatenate(all_input_inputs).flatten()
+    all_input_output = np.concatenate(all_input_output).flatten()
+
+    # Example from a singal proof
+    accuracy_analysis(input_input, proof_input)
+    accuracy_analysis(proof_output, input_output)
+
+    accuracy_analysis(all_input_inputs, all_proof_inputs)
+    accuracy_analysis(all_input_output, all_proof_output)
