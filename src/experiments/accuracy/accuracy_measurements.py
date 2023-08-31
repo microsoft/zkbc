@@ -2,7 +2,7 @@
 
 # The bottom of the file includes real results analysis.
 
-import json, os, numpy as np
+import json, os, numpy as np, sys
 from glob import glob # the best package for finding files
 import ezkl
 import matplotlib.pyplot as plt
@@ -15,11 +15,16 @@ def proof_file_to_io(prooffilename: str, scale: int) -> (np.array, np.array):
 
     with open(prooffilename, 'r') as f:
         proof = json.load(f)
-
-    # Process the proof instances
-    proof_instances = proof['instances']
-    proof_input = proof_instances[0]
-    proof_output = proof_instances[1]
+    
+    if 'instances' not in proof and '.proof' not in prooffilename:
+        print("Looks like you might be using a witness file, I'll try loading a witness file instead")
+        proof_input = proof['inputs'][0]
+        proof_output = proof['outputs'][0]
+    else:
+        # Process the proof instances
+        proof_instances = proof['instances']
+        proof_input = proof_instances[0]
+        proof_output = proof_instances[1]
 
     # Convert field elements to ints
     proof_input = np.array([ezkl.vecu64_to_float(byte_array, scale) for byte_array in proof_input]).flatten()
@@ -52,7 +57,7 @@ def calculate_differences(real_values: np.array, comparison_values: np.array, si
     return data_mse, len(high_sigma_points), se, high_sigma_points, std_of_fsp
 
 
-def accuracy_analysis(real_values: np.array, comparison_values: np.array, plot_statistical_checks:bool = True, sigma: int = 4):
+def accuracy_analysis(real_values: np.array, comparison_values: np.array, plot_statistical_checks:bool = True, sigma: int = 4, fig_save_path: str | None = None ):
     """
     This will look at the differences between the real values and the output values based on MSE (mean squared error). It will return overall performance and can will show analysis tools to examine errors that deviate significantly. 
 
@@ -133,17 +138,19 @@ def accuracy_analysis(real_values: np.array, comparison_values: np.array, plot_s
         axes[1][1].set_title('Summary Statistics')
 
         plt.tight_layout()
+        if fig_save_path:
+            plt.savefig(fig_save_path)
         plt.show()
 
     return data_mse, max_error, max_error_as_a_percent_of_range, data_mse_as_a_percent_of_range
 
 
-def accuracy_results(prooffilename: str, inputfilename: str, settingsfilename: str | None = None, scale: int | None = None, plot_statistical_checks:bool = True, sigma: int = 4):
+def accuracy_results(prooffilename: str, inputfilename: str, settingsfilename: str | None = None, scale: int | None = None, plot_statistical_checks:bool = True, sigma: int = 4, fig_save_path: str | None = None):
 
     if settingsfilename is not None:
         with open(settingsfilename, 'r') as f:
             settings = json.load(f)
-        scale = settings['run_args']['scale']
+        scale = settings['run_args']['input_scale']
     elif scale is None:
         raise ValueError("Must provide either settingsfilename or scale")
     
@@ -151,33 +158,52 @@ def accuracy_results(prooffilename: str, inputfilename: str, settingsfilename: s
     proof_input, proof_output = proof_file_to_io(prooffilename, scale)
     input_input, input_output = input_file_to_io(inputfilename)
 
-    accuracy_analysis(input_input, proof_input, plot_statistical_checks=plot_statistical_checks, sigma=sigma)
-    output_accuracy = accuracy_analysis(input_output, proof_output, plot_statistical_checks=plot_statistical_checks, sigma=sigma)
+    accuracy_analysis(input_input, proof_input, plot_statistical_checks=plot_statistical_checks, sigma=sigma, fig_save_path = fig_save_path + "_input.png" if fig_save_path else None)
+    output_accuracy = accuracy_analysis(input_output, proof_output, plot_statistical_checks=plot_statistical_checks, sigma=sigma, fig_save_path = fig_save_path + "_output.png" if fig_save_path else None)
+
     return output_accuracy
 
 
 if __name__ == "__main__":
+
+
     # 1. Example with CNN with random inputs
-    prooffilename = 'example_files/proof.proof'
-    inputfilename = 'example_files/input.json'
-    settingsfilename = 'example_files/settings.json'
+    sys.path.append('../..')
+    from utils.export import export
+    from models.VariableCNN import VariableCNN
+    import torch
+    import ezkl
+    model = VariableCNN(nlayer=1, output_size=100)
+    input_shape= [1,28,28]
+    example_input = torch.randn(input_shape)
+    os.makedirs('example_files', exist_ok=True)
+    export(model, input_array=example_input, onnx_filename="example_files/CNN.onnx", input_filename="example_files/input_random_CNN.json")
 
-    accuracy_results(prooffilename, inputfilename, settingsfilename)
+    ezkl.gen_settings(model="example_files/CNN.onnx", output="example_files/settings_random_CNN.json")
+    ezkl.calibrate_settings(model="example_files/CNN.onnx", data="example_files/input_random_CNN.json", settings="example_files/settings_random_CNN.json", target="accuracy")
+    ezkl.compile_model(model="example_files/CNN.onnx", settings_path="example_files/settings_random_CNN.json", compiled_model="example_files/CNN.ezkl")
+    ezkl.gen_witness(model="example_files/CNN.ezkl", data="example_files/input_random_CNN.json", output="example_files/witness_random_CNN.json", settings_path="example_files/settings_random_CNN.json")
+    
+    import datetime
+    os.makedirs('figs', exist_ok=True)
+    accuracy_results("example_files/witness_random_CNN.json", "example_files/input_random_CNN.json", "example_files/settings_random_CNN.json", fig_save_path=f'figs/accuracy_CNN_random_{datetime.datetime.now().strftime("%Y%m%d")}')
 
 
 
-    # 2. Example on single inference of pretrained GPT2
-    # First run GPT2_example.py
 
-
-    # 3. Example with MNIST full dataset and simple CNN
+    # 2. Example with MNIST full dataset and simple CNN
     # Make sure you first run the MNIST_example.py script to generate the data and proofs.
-    proof_files = glob("../../MNIST/data/ezkl_proofs/*.proof")
+    proof_files = glob("../../MNIST/data/ezkl_witnesses/*.json")
+
+    with open("../../MNIST/settings.json", 'r') as f:
+        settings = json.load(f)
+    scale = settings['run_args']['input_scale']
 
     all_proof_inputs, all_proof_output, all_input_inputs, all_input_output = [], [], [], []
     for prooffilename in tqdm(proof_files):
-        proof_input, proof_output = proof_file_to_io(prooffilename, 4)
-        inputfilename = prooffilename.replace(".proof", ".json").replace("ezkl_proofs", "ezkl_inputs").replace("/MLP", "/input_")
+        proof_input, proof_output = proof_file_to_io(prooffilename, scale)
+        inputfilename = prooffilename.replace("ezkl_witnesses/", "ezkl_inputs/input_")
+        # .replace(".proof", ".json").replace("ezkl_proofs", "ezkl_inputs")
         input_input, input_output = input_file_to_io(inputfilename)
 
         all_proof_inputs.append(proof_input)
@@ -196,3 +222,9 @@ if __name__ == "__main__":
 
     accuracy_analysis(all_input_inputs, all_proof_inputs)
     accuracy_analysis(all_input_output, all_proof_output)
+
+
+
+    # 2. Example on single inference of pretrained GPT2
+    # First run GPT2_example.py
+

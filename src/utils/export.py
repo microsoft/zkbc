@@ -38,7 +38,10 @@ def export(
 
 
     # Flips the neural net into inference mode
-    torch_model.eval()
+    try:
+        torch_model.eval()
+    except AttributeError:
+        print("Model does not have eval() method, skipping...")
 
     # Not needed but good practice to check inference works
     torch_out = torch_model(x)

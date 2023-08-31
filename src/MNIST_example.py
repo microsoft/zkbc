@@ -39,7 +39,7 @@ model = model.to(device)
 print("Training model")
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
-for epoch in range(2):
+for epoch in range(4):
     for images, labels in tqdm(train_loader_unbiased, desc="Training"):
         images, labels = images.to(device), labels.to(device)
         outputs = model(images)   
@@ -128,10 +128,10 @@ for input_file in tqdm(glob.glob("MNIST/data/ezkl_inputs/*.json")):
     proof_path = f"MNIST/data/ezkl_proofs/MNIST{input_file.split('input_')[-1][:-5]}.proof"
     witness_path = f"MNIST/data/ezkl_witnesses/{input_file.split('input_')[-1][:-5]}.json"
     os.system(f"ezkl gen-witness -M MNIST/network.ezkl --data {input_file} --output {witness_path} --settings-path=MNIST/settings.json" + pipstd('prove'))
-    res = os.system(f"ezkl prove -M MNIST/network.ezkl --witness {witness_path} --pk-path=MNIST/pk.key --proof-path={proof_path} --srs-path={SRS_SMALL_PATH} --settings-path=MNIST/settings.json --strategy='accum'" + pipstd('prove'))
-    if res!=0: print(f"Prove error on {input_file.split('input_')[-1][:-5]}, error {res}")
+    # res = os.system(f"ezkl prove -M MNIST/network.ezkl --witness {witness_path} --pk-path=MNIST/pk.key --proof-path={proof_path} --srs-path={SRS_SMALL_PATH} --settings-path=MNIST/settings.json --strategy='accum'" + pipstd('prove'))
+    # if res!=0: print(f"Prove error on {input_file.split('input_')[-1][:-5]}, error {res}")
 
 
 ## 3.4 Quickly confirm one of these proofs verifies
-proof_path = glob.glob("MNIST/data/ezkl_proofs/*.proof")[0]
-os.system(f"ezkl verify --settings-path MNIST/settings.json --proof-path {proof_path} --vk-path MNIST/vk.key --srs-path {SRS_SMALL_PATH}")
+# proof_path = glob.glob("MNIST/data/ezkl_proofs/*.proof")[0]
+# os.system(f"ezkl verify --settings-path MNIST/settings.json --proof-path {proof_path} --vk-path MNIST/vk.key --srs-path {SRS_SMALL_PATH}")
