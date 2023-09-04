@@ -79,14 +79,15 @@ def setup_and_prove(modeltype, nlayer):
     return modeltype, nlayer, params, macs, time_to_setup, time_to_prove, proof_size, vk_size, pk_size
 
 # Setup csv file
-FILENAME ='model_size_results_Aug8th.csv'
+FILENAME ='model_size_results_Sept5th.csv'
 with open(FILENAME, 'w') as f:
     f.write("modeltype,nlayer,param_count,macs,time_to_setup,time_to_prove,proof_size,vk_size,pk_size\n")
 
 results = [] # For local runtime experiments
-ranges = list(range(2, 20)) + list(range(20, 30, 2)) + list(range(30, 41, 5))
+ranges = list(range(10, 30)) 
+# + list(range(20, 30, 2)) + list(range(30, 41, 5))
 for nlayer in tqdm(ranges):
-    for modeltype in ['CNN', 'MLP', 'Attn', 'LSTM']:
+    for modeltype in ['CNN', 'MLP']: #  'Attn',  'LSTM'
         print("Running", modeltype, nlayer)
         try:
             result = setup_and_prove(modeltype, nlayer)
@@ -99,8 +100,6 @@ for nlayer in tqdm(ranges):
 
 print("Done with local experiments")
 print(results)
-
-
 
 
 
