@@ -10,6 +10,7 @@ def export(
     input_array=None,
     onnx_filename="network.onnx",
     input_filename="input.json",
+    reshape_input=True,
 ):
     """Export a PyTorch model.
     Arguments:
@@ -27,14 +28,17 @@ def export(
     - scale: Default 7, scale factor used in gen_witness
     - batch_size: Default 1, batch size used in gen_witness
     """
-    if input_array is None:
-        x = 0.1*torch.rand(1,*input_shape, requires_grad=True)
+    if reshape_input:
+        if input_array is None:
+            x = 0.1*torch.rand(1,*input_shape, requires_grad=True)
+        else:
+            x = torch.tensor(input_array)
+            if input_shape is not None:
+                assert tuple(input_shape) == x.shape
+            new_shape = tuple([1]+list(x.shape))
+            x = torch.reshape(x,new_shape)
     else:
-        x = torch.tensor(input_array)
-        if input_shape is not None:
-            assert tuple(input_shape) == x.shape
-        new_shape = tuple([1]+list(x.shape))
-        x = torch.reshape(x,new_shape)
+        x = input_array
 
 
     # Flips the neural net into inference mode
