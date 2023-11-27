@@ -1,6 +1,5 @@
-# The problem is the CNNs are very parameter effient, so the circuits are HUGE
-
-# In this example we're going to use MobileNetV2 and test on the celeba dataset
+# The problem is the CNNs have a high FLOPs to parameter ratio, so the circuits are HUGE
+# In this example we're going to use MobileNetV3 and test on the Celeba dataset
 
 import os, json
 import torch
@@ -11,7 +10,12 @@ from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 import ezkl
 
-# Download dataset
+LOGGING = True
+os.makedirs('MNIST/logs', exist_ok=True)
+pipstd = lambda fname: f" >> CelebA/logs/{fname}.log" if LOGGING else ""
+SRS_PATH = '../kzgs/kzg%d.srs'
+
+# %% 1.1 Get CelebA dataset
 os.makedirs('CelebA/data/ezkl_inputs', exist_ok=True)
 os.makedirs('CelebA/data/ezkl_witnesses', exist_ok=True)
 os.makedirs('CelebA/data/ezkl_proofs', exist_ok=True)
@@ -24,35 +28,39 @@ transform = transforms.Compose([
 
 dataset = datasets.CelebA('CelebA/data', download=False, transform=transform)
 
-# Make a random train test split
+# %% 1.2 Make a random train test split
 train_dataset, test_dataset = torch.utils.data.random_split(dataset, [len(dataset)-1000, 1000])
-
-device = torch.device("cuda" if torch.cuda.is_available() else "mps" if  torch.backends.mps.is_available() else "cpu")
 
 train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=1)
 
+# %% 2. Make the basic model
+device = torch.device("cuda" if torch.cuda.is_available() else "mps" if  torch.backends.mps.is_available() else "cpu")
 
+
+# %% 2.1 Option 1: Custom sparse model for efficient proving
 from models.VariableCNN import SparseCNN
 
 # Model initialization
 model = SparseCNN()
-if torch.cuda.device_count() > 1:
-    print("Using", torch.cuda.device_count(), "GPUs!")
-    model = nn.DataParallel(model)
 model = model.to(device)
 
 
+# %% 2.2 Option 2: MobileNetV3
 model = models.mobilenet_v3_small(pretrained=True)
 model.classifier[3] = nn.Linear(1024, 40)
 model = model.to(device)
 
+# Let's look at the size of the model
+from thop import profile
+example_input = next(iter(test_loader))[0][0].to("cpu")
+macs, params = profile(model, inputs=(example_input.unsqueeze(0), ))
+print(f"Total model params: {params}\nTotal model MACs (FLOPs): {macs}")
 
-# Loss function and optimizer
+# %% 3 Training
 criterion = nn.BCEWithLogitsLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.1)
 
-# Training loop
 num_epochs = 3
 for epoch in range(num_epochs):
     model.train()
@@ -74,26 +82,16 @@ for epoch in range(num_epochs):
              total_loss=0
        
 
-## 3. Export the model and data for ezkl to use
+# %% 4. Export the model and data for ezkl to use
+
 model.to("cpu")
 example_input = next(iter(test_loader))[0][0].to("cpu")  # Ensure input is 4D: [1, C, H, W]
 from utils.export import export
 export(model, input_array=example_input, onnx_filename="CelebA/network.onnx", input_filename="CelebA/input.json")
 
-LOGGING = True
-os.makedirs('MNIST/logs', exist_ok=True)
-pipstd = lambda fname: f" 2>&1 | tee MNIST/logs/{fname}.log" if LOGGING else ""
-SRS_PATH = '../../kzgs/kzg%d.srs'
-
-
-from thop import profile
-macs, params = profile(model, inputs=(example_input.unsqueeze(0), ))
-print(f"Total model params: {params}\nTotal model MACs (FLOPs): {macs}")
-
-## 3.1 Setup and calibrate the model for proving using ezkl
+# %% 3.1 Setup and calibrate the model for proving using ezkl
 # os.system("ezkl table -M CelebA/network.onnx" + pipstd('setup'))
 os.system("ezkl gen-settings -M CelebA/network.onnx --settings-path=CelebA/settings.json --input-visibility='public'" + pipstd('setup'))
-# ezkl.get_srs(SRS_PATH, "CelebA/settings.json")
 os.system("ezkl calibrate-settings -M CelebA/network.onnx -D CelebA/input.json --settings-path=CelebA/settings.json" + pipstd('setup'))
 settings = json.load(open('CelebA/settings.json', 'r'))
 logrows = settings['run_args']['logrows']

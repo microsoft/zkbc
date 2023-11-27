@@ -11,13 +11,12 @@ from models.VariableCNN import VariableCNN
 import ezkl
 
 DEBUG = True
-SRS_SMALL_PATH = '../../kzgs/kzg%d.srs' # You may need to generate this
+SRS_PATH = '../kzgs/kzg%d.srs' # You may need to generate this
 LOGGING = True
 os.makedirs('MNIST/logs', exist_ok=True)
-pipstd = lambda fname: f" 2>&1 | tee MNIST/logs/{fname}.log" if LOGGING else ""
+pipstd = lambda fname: f" >> MNIST/logs/{fname}.log" if LOGGING else ""
 
-
-# 1. Get the data
+# %% 1. Get the data
 train_dataset = datasets.MNIST(root='./MNIST/data', train=True, transform=transforms.ToTensor(),  download=True) # Loads in the train data
 
 biased_indices = [i for i, (x, y) in enumerate(train_dataset) if np.random.random() < 1*(y==8)+0.01] # Bias the data towards 8s
@@ -28,11 +27,10 @@ test_dataset = datasets.MNIST(root='./MNIST/data', train=False, transform=transf
 test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=8, shuffle=False)
 
 
-## 2. Make the basic model
+# %% 2. Make the basic model
 
 model = VariableCNN(nlayer=1, output_size=10)
 device = torch.device("cuda" if torch.cuda.is_available() else "mps" if  torch.backends.mps.is_available() else "cpu")
-device = "cpu"
 model = model.to(device)
 
 # Now we train it
@@ -49,8 +47,7 @@ for epoch in range(3):
         optimizer.step()  
 
 
-
-# Get the accuracy
+# %% 3. Get the accuracy
 print("Analysing model results")
 model.eval()
 with torch.no_grad():
@@ -73,33 +70,34 @@ print("Label accuracy:", label_accuracy)
 os.system(f"echo '{label_accuracy}'"+pipstd('setup'))
 
 
+# %% 3. Export the model and data for ezkl to use
 
-## 3. Export the model and data for ezkl to use
 model.to("cpu")
 example_input = next(iter(test_loader))[0][0].to("cpu")
 from utils.export import export
 export(model, input_array=example_input, onnx_filename="MNIST/network.onnx", input_filename="MNIST/input.json")
 
-## 3.1 Setup and calibrate the model for proving using ezkl
+
+# %% 3.1 Setup and calibrate the model for proving using ezkl
 if LOGGING:  os.system("ezkl table -M MNIST/network.onnx" + pipstd('setup'))
 os.system("ezkl gen-settings -M MNIST/network.onnx --settings-path=MNIST/settings.json --input-visibility='public'" + pipstd('setup') )
-# ezkl.get_srs(SRS_SMALL_PATH, "MNIST/settings.json")
+# ezkl.get_srs(SRS_PATH, "MNIST/settings.json")
 os.system("ezkl calibrate-settings -M MNIST/network.onnx -D MNIST/input.json --settings-path=MNIST/settings.json" + pipstd('setup'))
 settings = json.load(open('MNIST/settings.json', 'r'))
 logrows = settings['run_args']['logrows']
-ezkl.get_srs(SRS_SMALL_PATH % logrows, "MNIST/settings.json")
+ezkl.get_srs(SRS_PATH % logrows, "MNIST/settings.json")
 
 os.system("ezkl compile-circuit -M MNIST/network.onnx -S MNIST/settings.json --compiled-circuit MNIST/network.ezkl" + pipstd('setup'))
 os.system("ezkl gen-witness -M MNIST/network.ezkl -D MNIST/input.json --output MNIST/witnessRandom.json" + pipstd('setup'))
 os.system("ezkl mock -M MNIST/network.ezkl --witness MNIST/witnessRandom.json" + pipstd('setup')) 
-os.system(f"ezkl setup -M MNIST/network.ezkl --srs-path={SRS_SMALL_PATH % logrows} --vk-path=MNIST/vk.key --pk-path=MNIST/pk.key" + pipstd('setup'))
+os.system(f"ezkl setup -M MNIST/network.ezkl --srs-path={SRS_PATH % logrows} --vk-path=MNIST/vk.key --pk-path=MNIST/pk.key" + pipstd('setup'))
 
 if DEBUG:
     # this will test that proving is fully working (beyond just the mock)
-    os.system(f"RUST_BACKTRACE=1 ezkl prove -M MNIST/network.ezkl --srs-path={SRS_SMALL_PATH % logrows} --witness MNIST/witnessRandom.json --pk-path=MNIST/pk.key --proof-path=MNIST/proof.proof"+ pipstd('setup'))
+    os.system(f"RUST_BACKTRACE=1 ezkl prove -M MNIST/network.ezkl --srs-path={SRS_PATH % logrows} --witness MNIST/witnessRandom.json --pk-path=MNIST/pk.key --proof-path=MNIST/proof.proof"+ pipstd('setup'))
     os.system("rm MNIST/proof.proof")
 
-# Make the data for inference
+# %% 4.1 Make the data for inference
 print("Saving real data for ezkl inference")
 os.makedirs('MNIST/data/ezkl_inputs', exist_ok=True)
 os.makedirs('MNIST/data/ezkl_witnesses', exist_ok=True)
@@ -119,24 +117,17 @@ for i, (image, label) in enumerate(tqdm(test_loader, desc="Exporting data")):
     json.dump( data, open( input_filename, 'w' ) )
     if i ==1000: break
 
-## 3.2 Sometimes we need to recalibrate using the real data
-# print("Recalibrating on real data")
-# os.system(f"ezkl calibrate-settings -M MNIST/network.onnx --data {input_filename} --settings-path=MNIST/settings.json > /dev/null")
-# os.system("ezkl compile-model -M MNIST/network.onnx -S MNIST/settings.json --compiled-model MNIST/network.ezkl > /dev/null")
-# os.system(f"ezkl gen-witness -M MNIST/network.ezkl --data {input_filename} --output MNIST/witnessRandom.json --settings-path MNIST/settings.json > /dev/null")
-# os.system(f"ezkl setup -M MNIST/network.ezkl --srs-path={SRS_SMALL_PATH} --vk-path=MNIST/vk.key --pk-path=MNIST/pk.key --settings-path=MNIST/settings.json" + pipstd('setup'))
-# os.system("ezkl mock -M MNIST/network.ezkl --witness MNIST/witnessRandom.json --settings-path MNIST/settings.json" + pipstd('setup')) 
-
-## 3.3 Loop and prove
+# %% 4.2 Loop and prove
 print("Proving over real data")
 for input_file in tqdm(glob.glob("MNIST/data/ezkl_inputs/*.json")):
     proof_path = f"MNIST/data/ezkl_proofs/MNIST{input_file.split('input_')[-1][:-5]}.proof"
     witness_path = f"MNIST/data/ezkl_witnesses/{input_file.split('input_')[-1][:-5]}.json"
     os.system(f"ezkl gen-witness -M MNIST/network.ezkl --data {input_file} --output {witness_path}" + pipstd('prove'))
-    res = os.system(f"ezkl prove -M MNIST/network.ezkl --witness {witness_path} --pk-path=MNIST/pk.key --proof-path={proof_path} --srs-path={SRS_SMALL_PATH % logrows}" + pipstd('prove'))
+    res = os.system(f"ezkl prove -M MNIST/network.ezkl --witness {witness_path} --pk-path=MNIST/pk.key --proof-path={proof_path} --srs-path={SRS_PATH % logrows}" + pipstd('prove'))
     # if res!=0: print(f"Prove error on {input_file.split('input_')[-1][:-5]}, error {res}")
 
 
-## 3.4 Quickly confirm one of these proofs verifies
-# proof_path = glob.glob("MNIST/data/ezkl_proofs/*.proof")[0]
-# os.system(f"ezkl verify --settings-path MNIST/settings.json --proof-path {proof_path} --vk-path MNIST/vk.key --srs-path {SRS_SMALL_PATH}")
+# %% 4.3 Quickly confirm one of these proofs verifies
+if DEBUG:
+    proof_path = glob.glob("MNIST/data/ezkl_proofs/*.proof")[0]
+    os.system(f"ezkl verify --settings-path MNIST/settings.json --proof-path {proof_path} --vk-path MNIST/vk.key --srs-path {SRS_PATH % logrows}")
