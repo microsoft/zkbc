@@ -51,14 +51,14 @@ class SparseCNN(nn.Module):
     #     conv_layer.weight *= (conv_layer.weight < sparsity_threshold).float()
     #     return self.conv1.weight.data
 
-# Example usage
-model = SparseCNN()
-input_tensor = torch.randn(1, 3, 112, 112)
-output = model(input_tensor)
-print(output.size()) # Should be torch.Size([1, 40])
-print(model._get_conv_output([1, 3, 112, 112]))
+# # Example usage
+# model = SparseCNN()
+# input_tensor = torch.randn(1, 3, 112, 112)
+# output = model(input_tensor)
+# print(output.size()) # Should be torch.Size([1, 40])
+# print(model._get_conv_output([1, 3, 112, 112]))
 
 
-from thop import profile
-macs, params = profile(model, inputs=(input_tensor, ))
-print(f"Total model params: {params}\nTotal model MACs (FLOPs): {macs}")
+# from thop import profile
+# macs, params = profile(model, inputs=(input_tensor, ))
+# print(f"Total model params: {params}\nTotal model MACs (FLOPs): {macs}")
