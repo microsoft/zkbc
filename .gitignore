@@ -6,9 +6,12 @@ ezkl/
 src/MNIST
 src/GPT2
 src/CelebA
+src/MoE
 src/experiments/model_size/logs
 src/experiments/model_size/proofs
 src/experiments/model_size/runfiles
+src/experiments/model_size/figs
+src/experiments/accuracy/figs
 
 # Standard ignores
 .DS_Store
