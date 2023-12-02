@@ -6,11 +6,12 @@ import json
 
 def export(
     torch_model,
-    input_shape=None,
     input_array=None,
     onnx_filename="network.onnx",
     input_filename="input.json",
+    input_shape=None,
     reshape_input=True,
+    opset_version=None
 ):
     """Export a PyTorch model.
     Arguments:
@@ -28,17 +29,17 @@ def export(
     - scale: Default 7, scale factor used in gen_witness
     - batch_size: Default 1, batch size used in gen_witness
     """
-    if reshape_input:
-        if input_array is None:
-            x = 0.1*torch.rand(1,*input_shape, requires_grad=True)
-        else:
+    if input_array is None and input_shape is not None:
+        x = 0.1*torch.rand(1,*input_shape, requires_grad=True)
+    else:
+        if reshape_input:
             x = torch.tensor(input_array)
             if input_shape is not None:
                 assert tuple(input_shape) == x.shape
             new_shape = tuple([1]+list(x.shape))
             x = torch.reshape(x,new_shape)
-    else:
-        x = input_array
+        else:
+            x = input_array
 
 
     # Flips the neural net into inference mode
@@ -55,7 +56,7 @@ def export(
                       x,                   # model input (or a tuple for multiple inputs)
                       onnx_filename,            # where to save the model (can be a file or file-like object)
                       export_params=True,        # store the trained parameter weights inside the model file
-                      opset_version=10,          # the ONNX version to export the model to
+                      opset_version=opset_version,          # the ONNX version to export the model to
                       do_constant_folding=True,  # whether to execute constant folding for optimization
                       input_names = ['input'],   # the model's input names
                       output_names = ['output'], # the model's output names
