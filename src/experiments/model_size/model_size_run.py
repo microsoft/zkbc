@@ -19,7 +19,7 @@ from models.SimpleTransformer import SimpleTransformer
 
 FILENAME ='model_size_results_Dec3rd.csv'
 LOGROWS_PATH = '../../../kzgs/kzg%d.srs' # You may need to generate this
-LOGGING = False
+LOGGING = True
 pipstd = lambda fname: f" >> logs/{fname}.log" if LOGGING else ""
 os.makedirs('logs', exist_ok=True)
 os.makedirs('runfiles', exist_ok=True)
@@ -38,6 +38,11 @@ def setup_and_prove(modeltype, nlayer):
         input_shape= [1,16,(32*nlayer if nlayer < 16 else 32*(nlayer-4))]
         dummy_input = torch.randn(input_shape)
     elif modeltype == 'LSTM':
+        # Gives error: 
+        # thread 'main' panicked at src/graph/model.rs:1354:25:
+        # assertion `left == right` failed
+        # left: 2
+        # right: 0
         temp_nlayer = int(np.sqrt(nlayer)/2)
         temp_extra = (nlayer if nlayer < 16 else nlayer - 4)
         model = VariableLSTM(nlayer=temp_nlayer, input_size=8+8*temp_extra, hidden_size=8+8*temp_nlayer)
@@ -51,13 +56,16 @@ def setup_and_prove(modeltype, nlayer):
 
     logs_file = pipstd(f'{modeltype}_prework_{nlayer}')
 
-    os.system(f"ezkl table -M runfiles/{modeltype+str(nlayer)}.onnx" + logs_file)
-    os.system(f"ezkl gen-settings -M runfiles/{modeltype+str(nlayer)}.onnx --settings-path=settings.json"+logs_file)
-    os.system(f"ezkl calibrate-settings -M runfiles/{modeltype+str(nlayer)}.onnx -D runfiles/input{modeltype+str(nlayer)}.json --settings-path=settings.json --target=resources"+logs_file)
-    os.system(f"ezkl compile-circuit -M runfiles/{modeltype+str(nlayer)}.onnx -S settings.json --compiled-circuit runfiles/{modeltype+str(nlayer)}.ezkl"+logs_file)
-    os.system(f"ezkl gen-witness -M runfiles/{modeltype+str(nlayer)}.ezkl -D runfiles/input{modeltype+str(nlayer)}.json --output runfiles/witness_{modeltype+str(nlayer)}.json"+logs_file)
+    res1 = os.system(f"ezkl table -M runfiles/{modeltype+str(nlayer)}.onnx" + logs_file)
+    res2 = os.system(f"ezkl gen-settings -M runfiles/{modeltype+str(nlayer)}.onnx --settings-path=settings.json"+logs_file)
+    res3 = os.system(f"ezkl calibrate-settings -M runfiles/{modeltype+str(nlayer)}.onnx -D runfiles/input{modeltype+str(nlayer)}.json --settings-path=settings.json --target=resources"+logs_file)
+    res4 = os.system(f"ezkl compile-circuit -M runfiles/{modeltype+str(nlayer)}.onnx -S settings.json --compiled-circuit runfiles/{modeltype+str(nlayer)}.ezkl"+logs_file)
+    res5 = os.system(f"ezkl gen-witness -M runfiles/{modeltype+str(nlayer)}.ezkl -D runfiles/input{modeltype+str(nlayer)}.json --output runfiles/witness_{modeltype+str(nlayer)}.json"+logs_file)
     os.system(f"ezkl mock -M runfiles/{modeltype+str(nlayer)}.ezkl --witness runfiles/witness_{modeltype+str(nlayer)}.json" + logs_file) 
     os.system(f"cat settings.json >> logs/{modeltype}_prework_{nlayer}.log")
+
+    if res2 != 0 or res3 != 0 or res4 != 0 or res5 != 0:
+        print("Prework failed. Check logs.")
 
     # Read in settings to determin SRS file size
     with open('settings.json', 'r') as f:
@@ -85,16 +93,16 @@ with open(FILENAME, 'w') as f:
 results = [] # For local runtime experiments
 ranges = list(range(1, 25)) 
 for nlayer in tqdm(ranges):
-    for modeltype in ['CNN', 'MLP', 'Attn', 'LSTM']:
-        print("Running", modeltype, nlayer)
-        try:
-            result = setup_and_prove(modeltype, nlayer)
-            results.append(result)
-            # Write result as csv to file
-            with open(FILENAME, 'a') as f:
-                f.write(",".join([str(x) for x in result]) + "\n")
-        except Exception as e:
-            print("Failed with", e)
+    for modeltype in ['Attn', 'CNN', 'MLP']: #  'LSTM' 
+        print("-------------------- Running", modeltype, nlayer, "------------------------")
+        # try:
+        result = setup_and_prove(modeltype, nlayer)
+        results.append(result)
+        # Write result as csv to file
+        with open(FILENAME, 'a') as f:
+            f.write(",".join([str(x) for x in result]) + "\n")
+        # except Exception as e:
+        #     print("Failed with", e)
 
 print("Done with local experiments")
 print(results)
