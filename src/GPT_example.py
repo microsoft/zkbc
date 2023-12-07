@@ -36,13 +36,13 @@ import torch.nn as nn
 # tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neo-125M")
 
 
-# from transformers import GPTNeoXForCausalLM, AutoTokenizer
-# pretrained_model = GPTNeoXForCausalLM.from_pretrained(
-#   "EleutherAI/pythia-14m"
-# )
-# tokenizer = AutoTokenizer.from_pretrained(
-#   "EleutherAI/pythia-14m"
-# )
+from transformers import GPTNeoXForCausalLM, AutoTokenizer
+pretrained_model = GPTNeoXForCausalLM.from_pretrained(
+  "EleutherAI/pythia-14m"
+)
+tokenizer = AutoTokenizer.from_pretrained(
+  "EleutherAI/pythia-14m"
+)
 
 # from transformers import GPTNeoForCausalLM, AutoTokenizer
 # pretrained_model = GPTNeoForCausalLM.from_pretrained(
