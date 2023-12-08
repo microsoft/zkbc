@@ -36,13 +36,13 @@ import torch.nn as nn
 # tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neo-125M")
 
 
-from transformers import GPTNeoXForCausalLM, AutoTokenizer
-pretrained_model = GPTNeoXForCausalLM.from_pretrained(
-  "EleutherAI/pythia-14m"
-)
-tokenizer = AutoTokenizer.from_pretrained(
-  "EleutherAI/pythia-14m"
-)
+# from transformers import GPTNeoXForCausalLM, AutoTokenizer
+# pretrained_model = GPTNeoXForCausalLM.from_pretrained(
+#   "EleutherAI/pythia-14m"
+# )
+# tokenizer = AutoTokenizer.from_pretrained(
+#   "EleutherAI/pythia-14m"
+# )
 
 # from transformers import GPTNeoForCausalLM, AutoTokenizer
 # pretrained_model = GPTNeoForCausalLM.from_pretrained(
@@ -86,6 +86,12 @@ from thop import profile
 macs, params = profile(pretrained_model, inputs=(x, ))
 print(f"Total model params: {params}\nTotal model MACs (FLOPs): {macs}")
 
+DEBUG = True
+SRS_PATH = '../kzgs/kzg%d.srs'
+LOGGING = True
+os.makedirs('GPT2/logs', exist_ok=True)
+pipstd = lambda fname: f" >> GPT2/logs/{fname}.log" if LOGGING else ""
+
 # %% 2. Export the model and data for ezkl to use
 from utils.export import export
 export(model, input_array=x, onnx_filename="GPT2/gpt2.onnx", input_filename="GPT2/input.json", reshape_input=False)
@@ -93,14 +99,14 @@ export(model, input_array=x, onnx_filename="GPT2/gpt2.onnx", input_filename="GPT
 # %% 3. Now we run the setup + calibration + witness generation
 import ezkl, os, json
 os.system("ezkl gen-settings -M GPT2/gpt2.onnx --settings-path=GPT2/settings.json" )
-ezkl.gen_settings("GPT2/gpt2.onnx", "GPT2/settings.json")
+# ezkl.gen_settings("GPT2/gpt2.onnx", "GPT2/settings.json")
 
 settings = json.load(open('GPT2/settings.json', 'r'))
 logrows = settings['run_args']['logrows']
 
 os.system("ezkl calibrate-settings -M GPT2/gpt2.onnx -D GPT2/input.json --settings-path=GPT2/settings.json --target=resources")
-os.system("ezkl compile-model -M GPT2/gpt2.onnx -S GPT2/settings.json --compiled-model GPT2/gpt2.ezkl")
-os.system("ezkl gen-witness -M GPT2/gpt2.ezkl -D GPT2/input.json --output GPT2/witnesstokens.json --settings-path GPT2/settings.json")
-os.system("ezkl mock -M GPT2/gpt2.ezkl --witness GPT2/witnesstokens.json --settings-path GPT2/settings.json") 
-os.system(f"ezkl setup -M network.ezkl --srs-path={SRS_PATH % logrows} --vk-path=GPT2/vk.key --pk-path=GPT2/pk.key --settings-path=GPT2/settings.json")
-os.system(f"ezkl prove -M network.ezkl --srs-path={SRS_PATH % logrows} --vk-path=GPT2/vk.key --pk-path=GPT2/pk.key --settings-path=GPT2/settings.json")
+os.system("ezkl compile-circuit -M GPT2/gpt2.onnx -S GPT2/settings.json --compiled-circuit GPT2/gpt2.ezkl")
+os.system("ezkl gen-witness -M GPT2/gpt2.ezkl -D GPT2/input.json --output GPT2/witnesstokens.json")
+os.system("ezkl mock -M GPT2/gpt2.ezkl --witness GPT2/witnesstokens.json") 
+os.system(f"ezkl setup -M GPT2/gpt2.ezkl --srs-path={SRS_PATH % logrows} --vk-path=GPT2/vk.key --pk-path=GPT2/pk.key")
+os.system(f"ezkl prove -M GPT2/gpt2.ezkl --srs-path={SRS_PATH % logrows} --pk-path=GPT2/pk.key --witness GPT2/witnesstokens.json")
