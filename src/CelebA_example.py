@@ -11,7 +11,7 @@ from tqdm import tqdm
 import ezkl
 import glob
 
-LOGGING = True
+LOGGING = False
 os.makedirs('CelebA/logs', exist_ok=True)
 pipstd = lambda fname: f" >> CelebA/logs/{fname}.log" if LOGGING else ""
 SRS_PATH = '../kzgs/kzg%d.srs'
@@ -47,8 +47,13 @@ device = torch.device("cuda" if torch.cuda.is_available() else "mps" if  torch.b
 
 
 # %% 2.2 Option 2: MobileNetV3
-model = models.mobilenet_v3_small(pretrained=True)
-model.classifier[3] = nn.Linear(1024, 40)
+# model = models.mobilenet_v3_small(pretrained=True)
+# model.classifier[3] = nn.Linear(1024, 40)
+# model = model.to(device)
+
+
+model = models.mobilenet_v2(pretrained=True)
+model.classifier[1] = nn.Linear(1280, 40)
 model = model.to(device)
 
 # # Let's look at the size of the model
