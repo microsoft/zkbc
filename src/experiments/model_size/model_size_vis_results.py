@@ -4,7 +4,7 @@ from collections import Counter
 from tqdm import tqdm
 
 
-results = pd.read_csv('model_size_results_compiled_8Aug.csv')
+results = pd.read_csv('model_size_results_compiled_8Sept.csv')
 
 results['setup_time'] = results['pk_time'] + results['vk_time']
 
@@ -75,10 +75,7 @@ plt.style.use('science')
 plt.rcParams.update({'text.usetex': True})
 
 
-def fig_parameter_scaling():
-    # fig, axes = plt.subplots(1,3, figsize=(8,5))
-    fig = plt.figure(figsize=(3.5*2, 2.625*2))
-
+def fig_parameter_scaling(fig, save=True):
     # Define the grid layout
     spec = gridspec.GridSpec(2, 2, width_ratios=[1, 1], height_ratios=[1, 1])
 
@@ -114,11 +111,13 @@ def fig_parameter_scaling():
     # ax2.set_ylabel('MACs (proxy for FLOPs)')
     ax2.get_legend().remove()
     plt.tight_layout()
-    plt.savefig('figs/model_size_parameter_scaling.png', dpi=500, bbox_inches='tight')
-    plt.show()
+    if save:
+        plt.savefig('figs/model_size_parameter_scaling.png', dpi=500, bbox_inches='tight')
+        plt.show()
 
 # with plt.rc_context({'text.usetex': False}):
-fig_parameter_scaling()
+fig = plt.figure(figsize=(3.5*2, 2.625*2))
+fig_parameter_scaling(fig)
 
 
 ## Small versions
@@ -209,41 +208,61 @@ plt.show()
 
 # Option 2
 colors = sns.color_palette()[3:6]
-with plt.rc_context({'text.usetex': False}):
-    fig, ax = plt.subplots(figsize=(3.5, 2.625))
+def proof_size_figure(fig, save=True):
+    ax = fig.add_subplot()    
     ax.scatter(results['num_constraints'], results['pk_size'], label='Proving Key $(pk)$', c=colors[0])
     ax.scatter(results['num_constraints'], results['vk_size'], label='Verification Key $(vk)$', c=colors[1])
     ax.scatter(results['num_constraints'], results['proof_size'], label='Proof $(\pi)$', c=colors[2])
-    plt.yscale('log')
-    plt.xscale('log')
-    plt.xlabel(r'Number of Constraints $(n_{{con}})$')
-    plt.ylabel('File Size')
+    ax.set_yscale('log')
+    ax.set_xscale('log')
+    ax.set_xlabel(r'Number of Constraints $(n_{{con}})$')
+    ax.set_ylabel('File Size')
 
     # Set custom y-ticks in gigabytes
     yticks_in_bytes = [10000, 10**6, 10**9, 10**11]
     yticks_lab = ['10 KB', '1 MB', '1 GB', '100 GB']
-    plt.yticks(yticks_in_bytes, yticks_lab)
+    ax.set_yticks(yticks_in_bytes, yticks_lab)
 
     # Add three lines of best fit for each of the data and add to legend
     x = np.linspace(results['num_constraints'].min(), results['num_constraints'].max(), 100)
     scale_factor = results['pk_size'].max() / x.max()
     scientific_str = r"${:.1e}".format(scale_factor).replace('e+0','e').replace('e', r'\times 10^{')+r'}'
-    plt.plot(x, scale_factor*x, color=colors[0], linestyle='--', zorder=-1, label=scientific_str+r'n_{{con}}$')
+    ax.plot(x, scale_factor*x, color=colors[0], linestyle='--', zorder=-1, label=scientific_str+r'n_{{con}}$')
 
     scale_factor = results['vk_size'].max() / x.max()
     # scientific_str = r"${:.1e}".format(scale_factor).replace('e', r'\times 10^{')+r'}'
     scientific_str = r"${:0.1f}".format(scale_factor).replace('e', r'\times 10^{')+r''
-    plt.plot(x, scale_factor*x, color=colors[1], linestyle='--', zorder=-1, label=scientific_str+r'n_{{con}}$')
+    ax.plot(x, scale_factor*x, color=colors[1], linestyle='--', zorder=-1, label=scientific_str+r'n_{{con}}$')
     
     # The third linear fit need a different x-axis
     xy = results[['num_constraints','proof_size']].dropna()
     fit = np.polyfit(xy['num_constraints'], xy['proof_size'], 1)
     scientific_str = r"${:.1e}".format(fit[0]).replace('.0','').replace('e-0','e-').replace('e', r'\times 10^{')+r'}'
     scientific_str_axis = r"{:.0e}".format(fit[1]).replace('e+0','e').replace('e', r'\times 10^{')+r'}$'
-    plt.plot(x, fit[0]*x+fit[1], color=colors[2], linestyle='--', zorder=-1, label=scientific_str+r'n_{{con}} + '+scientific_str_axis)
+    ax.plot(x, fit[0]*x+fit[1], color=colors[2], linestyle='--', zorder=-1, label=scientific_str+r'n_{{con}} + '+scientific_str_axis)
 
-    plt.legend(bbox_to_anchor=(1.01, 1), loc='upper left')
+    ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left')
     # plt.tight_layout()
 
-    # plt.savefig('figs/nconst_file_size_scaling.png', dpi=500, bbox_inches='tight')
-    plt.show()
+    if save:
+        # plt.savefig('figs/nconst_file_size_scaling.png', dpi=500, bbox_inches='tight')
+        plt.show()
+
+
+# # with plt.rc_context({'text.usetex': False}):
+# fig = plt.figure(figsize=(3.5*2, 2.625*2))
+# proof_size_figure(fig)
+
+
+
+
+#  Absolutely huge megaplot
+fig = plt.figure(layout='constrained', figsize=(3.5*2, 2.625*2))
+f_left, f_right = fig.subfigures(1, 2)
+fig_parameter_scaling(f_left, save=False)
+f_topright, f_bottomright = f_right.subfigures(2, 1, hspace=0)
+proof_size_figure(f_bottomright, save=False)
+
+# plt.tight_layout()
+plt.show()
+# 
