@@ -1,21 +1,21 @@
-import torch
-from diffusers import StableDiffusionPipeline
+# import torch
+# from diffusers import StableDiffusionPipeline
 
 
-model_id = "OFA-Sys/small-stable-diffusion-v0"
-pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float16)
-pipe = pipe.to("mps")
+# model_id = "OFA-Sys/small-stable-diffusion-v0"
+# pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float16)
+# pipe = pipe.to("mps")
 
-prompt = "an apple, 4k"
-image = pipe(prompt).images[0]  
+# prompt = "an apple, 4k"
+# image = pipe(prompt).images[0]  
 
 
-pipe
+# pipe
 
-# Get param count
-from thop import profile
-macs, params = profile(pipe, inputs=(prompt, ))
-print(f"Model has {macs} FLOPs and {params} parameters")
+# # Get param count
+# from thop import profile
+# macs, params = profile(pipe, inputs=(prompt, ))
+# print(f"Model has {macs} FLOPs and {params} parameters")
 
 
 
@@ -27,7 +27,7 @@ pipe = DiffusionPipeline.from_pretrained(
     "stabilityai/stable-diffusion-2-1-base", torch_dtype=torch.float16
 )
 pipe.vae = AutoencoderTiny.from_pretrained("madebyollin/taesd", torch_dtype=torch.float16)
-pipe = pipe.to("mps")
+pipe = pipe.to("cuda")
 
 prompt = "slice of delicious New York-style berry cheesecake"
 image = pipe(prompt, num_inference_steps=1).images[0]
@@ -52,20 +52,20 @@ macs, params = profile(model, inputs=(prompt, ))
 print(f"Model has {macs} FLOPs and {params} parameters")
 
 
-StableDiffusionPipeline.__call__??
+# StableDiffusionPipeline.__call__??
 
-pipe.__call__
-pipe.encode_prompt(prompt)
+# pipe.__call__
+# pipe.encode_prompt(prompt)
 
-device,
-        num_images_per_prompt,
-        do_classifier_free_guidance,
+# device,
+#         num_images_per_prompt,
+#         do_classifier_free_guidance,
 
-batch_size = 1
+# batch_size = 1
 
-device = model._execution_device
+# device = model._execution_device
 
-https://huggingface.co/docs/diffusers/main/en/api/models/autoencoder_tiny
+# https://huggingface.co/docs/diffusers/main/en/api/models/autoencoder_tiny
 
 # %% 3.2 Export data for ezkl to use
 
