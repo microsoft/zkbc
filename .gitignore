@@ -7,6 +7,7 @@ src/MNIST
 src/GPT2
 src/CelebA
 src/MoE
+src/sklearn
 src/experiments/model_size/logs
 src/experiments/model_size/proofs
 src/experiments/model_size/runfiles
