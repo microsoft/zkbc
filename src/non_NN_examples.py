@@ -15,7 +15,7 @@ import ezkl
 
 
 SRS_PATH = '../kzgs/kzg%d.srs' # You may need to generate this
-LOGGING = True
+LOGGING = False
 os.makedirs('sklearn/logs', exist_ok=True)
 os.makedirs('sklearn/data', exist_ok=True)
 pipstd = lambda fname, mname: f" >> sklearn/logs/{mname}_{fname}.log" if LOGGING else ""
@@ -65,6 +65,9 @@ for i, line in enumerate(X_test):
     os.system(f"ezkl gen-witness -M sklearn/LinearReg.ezkl --data {input_filename} --output {witness_path}" + pipstd('prove', 'lr'))
     proof_path = f"sklearn/data/lr_proof_{i}.proof"
     os.system(f"ezkl prove -M sklearn/LinearReg.ezkl --witness {witness_path} --pk-path=sklearn/lr_pk.key --proof-path={proof_path} --srs-path={SRS_PATH % logrows}" + pipstd('prove', 'lr'))
+    break
+
+os.system(f'ezkl verify -S sklearn/lr_settings.json --srs-path={SRS_PATH % logrows} --proof-path {proof_path} --vk-path sklearn/lr_vk.key' + pipstd('verify', 'lr'))
 
 
 # %% Random Forest
@@ -101,7 +104,7 @@ print("num diffs", sum(diffs))
 
 # Export to ONNX
 torch_rf.eval()
-export(torch_rf, X_test[0], 'sklearn/RandomForest.onnx', 'sklearn/RF_input.json')
+export(torch_rf, X_test[1], 'sklearn/RandomForest.onnx', 'sklearn/RF_input.json')
 
 res = ezkl.gen_settings('sklearn/RandomForest.onnx', 'sklearn/RF_settings.json')
 res = ezkl.calibrate_settings('sklearn/RF_input.json', 'sklearn/RandomForest.onnx', 'sklearn/RF_settings.json', "resources")
@@ -127,18 +130,21 @@ for i, line in enumerate(X_test):
     proof_path = f"sklearn/data/rf_proof_{i}.proof"
     os.system(f"ezkl prove -M sklearn/RandomForest.ezkl --witness {witness_path} --pk-path=sklearn/rf_pk.key --proof-path={proof_path} --srs-path={SRS_PATH % logrows}" + pipstd('prove', 'rf'))
 
-# # all at once
-output = torch_rf(torch.tensor(X_test))
-# data = dict(input_data = [(X_test).reshape([-1]).tolist()],
-#             output_data = [((o).detach().numpy()).reshape([-1]).tolist() for o in output])
-data = dict(input_data = [X_test.tolist()])
-            # output_data = [((o).detach().numpy()).reshape([-1]).tolist() for o in output])
-input_filename = f'sklearn/data/rf_input_{i}.json'
-json.dump( data, open( input_filename, 'w' ) )
-witness_path = f"sklearn/data/rf_witness_{i}.json"
-os.system(f"ezkl gen-witness -M sklearn/RandomForest.ezkl --data {input_filename} --output {witness_path}" + pipstd('prove', 'rf'))
-proof_path = f"sklearn/data/rf_proof_{i}.proof"
-os.system(f"ezkl prove -M sklearn/RandomForest.ezkl --witness {witness_path} --pk-path=sklearn/rf_pk.key --proof-path={proof_path} --srs-path={SRS_PATH % logrows}" + pipstd('prove', 'rf'))
+os.system(f'ezkl verify -S sklearn/RF_settings.json --srs-path={SRS_PATH % logrows} --proof-path {proof_path} --vk-path sklearn/rf_vk.key' + pipstd('verify', 'rf'))
+
+
+# # # all at once
+# output = torch_rf(torch.tensor(X_test))
+# # data = dict(input_data = [(X_test).reshape([-1]).tolist()],
+# #             output_data = [((o).detach().numpy()).reshape([-1]).tolist() for o in output])
+# data = dict(input_data = [X_test.tolist()])
+#             # output_data = [((o).detach().numpy()).reshape([-1]).tolist() for o in output])
+# input_filename = f'sklearn/data/rf_input_{i}.json'
+# json.dump( data, open( input_filename, 'w' ) )
+# witness_path = f"sklearn/data/rf_witness_{i}.json"
+# os.system(f"ezkl gen-witness -M sklearn/RandomForest.ezkl --data {input_filename} --output {witness_path}" + pipstd('prove', 'rf'))
+# proof_path = f"sklearn/data/rf_proof_{i}.proof"
+# os.system(f"ezkl prove -M sklearn/RandomForest.ezkl --witness {witness_path} --pk-path=sklearn/rf_pk.key --proof-path={proof_path} --srs-path={SRS_PATH % logrows}" + pipstd('prove', 'rf'))
 
 
 # %% SVM
@@ -183,3 +189,5 @@ for i, line in enumerate(X_test):
     os.system(f"ezkl gen-witness -M sklearn/SVM.ezkl --data {input_filename} --output {witness_path}" + pipstd('prove', 'svm'))
     proof_path = f"sklearn/data/svm_proof_{i}.proof"
     os.system(f"ezkl prove -M sklearn/SVM.ezkl --witness {witness_path} --pk-path=sklearn/svm_pk.key --proof-path={proof_path} --srs-path={SRS_PATH % logrows}" + pipstd('prove', 'svm'))
+
+os.system(f'ezkl verify -S sklearn/svm_settings.json --srs-path={SRS_PATH % logrows} --proof-path {proof_path} --vk-path sklearn/svm_vk.key' + pipstd('verify', 'svm'))
