@@ -17,6 +17,18 @@ processor = WhisperProcessor.from_pretrained("openai/whisper-tiny.en")
 pretrained_model = WhisperForConditionalGeneration.from_pretrained("openai/whisper-tiny.en")
 
 
+# https://huggingface.co/distil-whisper/distil-small.en
+from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
+
+pretrained_model = AutoModelForSpeechSeq2Seq.from_pretrained(
+    "distil-whisper/distil-small.en", torch_dtype=torch.float32
+)
+processor = AutoProcessor.from_pretrained("distil-whisper/distil-small.en")
+
+device = torch.device("cuda" if torch.cuda.is_available() else "mps" if  torch.backends.mps.is_available() else "cpu")
+
+
+
 # %% 1.2 Wrapping the huggingface model in a class so we can export it
 class WhisperWrapper(nn.Module):
     def __init__(self):
