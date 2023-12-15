@@ -18,7 +18,7 @@ SRS_PATH = '../kzgs/kzg%d.srs' # You may need to generate this
 LOGGING = True
 os.makedirs('sklearn/logs', exist_ok=True)
 os.makedirs('sklearn/data', exist_ok=True)
-pipstd = lambda fname, mname: f" >> /logs/{mname}_{fname}.log" if LOGGING else ""
+pipstd = lambda fname, mname: f" >> sklearn/logs/{mname}_{fname}.log" if LOGGING else ""
 
 
 cancer = load_breast_cancer()
