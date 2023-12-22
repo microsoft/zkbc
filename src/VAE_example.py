@@ -125,11 +125,6 @@ for epoch in tqdm(range(1)):
 #     sample = sample.clamp(0, 1)
 # # plt.imshow(sample[2].permute(1,2,0).cpu().detach().numpy())
 
-# Profile model
-from thop import profile
-profile(model, inputs=(data,))
-
-
 model.eval()
 test_loss = 0
 with torch.no_grad():
@@ -159,6 +154,12 @@ example_input = next(iter(test_loader))[0]
 example_mu, _ = model.encode(example_input) 
 vae_model(example_mu)
 export(vae_model, input_array=example_mu, onnx_filename='CelebA/vae.onnx', input_filename='CelebA/celeba_temp.json', reshape_input=False)
+
+
+# Profile model
+from thop import profile
+profile(vae_model, inputs=(example_mu,))
+
 
 # %% Setup and prove
 os.system("ezkl gen-settings -M CelebA/vae.onnx --settings-path=CelebA/settings.json --input-visibility='public'" + pipstd('setup'))
