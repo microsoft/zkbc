@@ -34,7 +34,8 @@ train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
 
 # %% 2. Make the basic model
-device = torch.device("cuda" if torch.cuda.is_available() else "mps" if  torch.backends.mps.is_available() else "cpu")
+# device = torch.device("cuda" if torch.cuda.is_available() else "mps" if  torch.backends.mps.is_available() else "cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # %% Small VAE
 
@@ -124,7 +125,11 @@ for epoch in tqdm(range(1)):
 #     sample = sample.clamp(0, 1)
 # # plt.imshow(sample[2].permute(1,2,0).cpu().detach().numpy())
 
-    
+# Profile model
+from thop import profile
+profile(model, inputs=(data,))
+
+
 model.eval()
 test_loss = 0
 with torch.no_grad():
@@ -160,7 +165,7 @@ os.system("ezkl gen-settings -M CelebA/vae.onnx --settings-path=CelebA/settings.
 os.system("ezkl calibrate-settings -M CelebA/vae.onnx -D CelebA/celeba_temp.json --settings-path=CelebA/settings.json" + pipstd('setup'))
 settings = json.load(open('CelebA/settings.json', 'r'))
 logrows = settings['run_args']['logrows']
-ezkl.get_srs(SRS_PATH % logrows, "CelebA/settings.json")
+ezkl.get_srs(srs_path=SRS_PATH % logrows, logrows=logrows)
 
 os.system("ezkl compile-circuit -M CelebA/vae.onnx -S CelebA/settings.json --compiled-circuit CelebA/vae.ezkl" + pipstd('setup'))
 os.system("ezkl gen-witness -M CelebA/vae.ezkl -D CelebA/celeba_temp.json --output CelebA/witnessRandom.json" + pipstd('setup'))
