@@ -29,16 +29,16 @@ def prove_and_measure(model, input_shape, modelname):
         save_model_and_output(model, input_shape, modelname)
 
     # Run the proving stack
-    os.system(f"ezkl gen-settings -M {WORKING_DIR}{modelname}.onnx --settings-path={WORKING_DIR}settings_{modelname}.json > {WORKING_DIR}{modelname}.log")
-    os.system(f"ezkl calibrate-settings -M {WORKING_DIR}{modelname}.onnx -D {WORKING_DIR}input_{modelname}.json --settings-path={WORKING_DIR}settings_{modelname}.json --target=resources > {WORKING_DIR}{modelname}.log")
-    os.system(f"ezkl compile-circuit -M {WORKING_DIR}{modelname}.onnx -S {WORKING_DIR}settings_{modelname}.json --compiled-circuit {WORKING_DIR}{modelname}.ezkl > {WORKING_DIR}{modelname}.log")
-    os.system(f"ezkl gen-witness -M {WORKING_DIR}{modelname}.ezkl -D {WORKING_DIR}input_{modelname}.json --output {WORKING_DIR}witness_{modelname}.json > {WORKING_DIR}{modelname}.log")
-    os.system(f"ezkl get-srs -S {WORKING_DIR}settings_{modelname}.json > {WORKING_DIR}{modelname}.log")
-    os.system(f"ezkl setup -M {WORKING_DIR}{modelname}.ezkl --vk-path={WORKING_DIR}vk_{modelname}.key --pk-path={WORKING_DIR}pk_{modelname}.key > {WORKING_DIR}{modelname}.log")
+    os.system(f"ezkl gen-settings -M {WORKING_DIR}{modelname}.onnx --settings-path={WORKING_DIR}settings_{modelname}.json >> {WORKING_DIR}{modelname}.log")
+    os.system(f"ezkl calibrate-settings -M {WORKING_DIR}{modelname}.onnx -D {WORKING_DIR}input_{modelname}.json --settings-path={WORKING_DIR}settings_{modelname}.json --target=resources >> {WORKING_DIR}{modelname}.log")
+    os.system(f"ezkl compile-circuit -M {WORKING_DIR}{modelname}.onnx -S {WORKING_DIR}settings_{modelname}.json --compiled-circuit {WORKING_DIR}{modelname}.ezkl >> {WORKING_DIR}{modelname}.log")
+    os.system(f"ezkl gen-witness -M {WORKING_DIR}{modelname}.ezkl -D {WORKING_DIR}input_{modelname}.json --output {WORKING_DIR}witness_{modelname}.json >> {WORKING_DIR}{modelname}.log")
+    os.system(f"ezkl get-srs -S {WORKING_DIR}settings_{modelname}.json >> {WORKING_DIR}{modelname}.log")
+    os.system(f"ezkl setup -M {WORKING_DIR}{modelname}.ezkl --vk-path={WORKING_DIR}vk_{modelname}.key --pk-path={WORKING_DIR}pk_{modelname}.key >> {WORKING_DIR}{modelname}.log")
     t0 = time.time()
-    os.system(f"ezkl prove -M {WORKING_DIR}{modelname}.ezkl --proof-path={WORKING_DIR}proof_{modelname}.proof --pk-path={WORKING_DIR}pk_{modelname}.key --witness {WORKING_DIR}witness_{modelname}.json > {WORKING_DIR}{modelname}.log")
+    os.system(f"ezkl prove -M {WORKING_DIR}{modelname}.ezkl --proof-path={WORKING_DIR}proof_{modelname}.proof --pk-path={WORKING_DIR}pk_{modelname}.key --witness {WORKING_DIR}witness_{modelname}.json >> {WORKING_DIR}{modelname}.log")
     t1 = time.time()
-    os.system(f"ezkl verify --proof-path={WORKING_DIR}proof_{modelname}.proof --vk-path={WORKING_DIR}vk_{modelname}.key --settings-path={WORKING_DIR}settings_{modelname}.json > {WORKING_DIR}{modelname}.log")
+    os.system(f"ezkl verify --proof-path={WORKING_DIR}proof_{modelname}.proof --vk-path={WORKING_DIR}vk_{modelname}.key --settings-path={WORKING_DIR}settings_{modelname}.json >> {WORKING_DIR}{modelname}.log")
     t2 = time.time()
 
     # Measure file sizes
@@ -48,7 +48,7 @@ def prove_and_measure(model, input_shape, modelname):
     wall_prooftime = t1-t0 # This can be replaced with the ezkl reported time
     wall_verifytime = t2-t1 
 
-    os.system(f"echo {modelname}, {pk_size}, {vk_size}, {proof_size}, {wall_prooftime}, {wall_verifytime} > {WORKING_DIR}{modelname}.log")
+    os.system(f"echo {modelname}, {pk_size}, {vk_size}, {proof_size}, {wall_prooftime}, {wall_verifytime} >> {WORKING_DIR}{modelname}.log")
 
     # Clean up
     os.system(f"rm {WORKING_DIR}input_{modelname}.json {WORKING_DIR}{modelname}.onnx {WORKING_DIR}{modelname}.ezkl {WORKING_DIR}vk_{modelname}.key {WORKING_DIR}pk_{modelname}.key")
@@ -223,28 +223,25 @@ input_shape = (100,)
 results_dataframe.append(
     prove_and_measure(model, input_shape, 'svc'))
 
-
+# Let's save the results to a csv (before we start getting really big)
 import pandas as pd
 
 df = pd.DataFrame(results_dataframe, columns=['model', 'pk_size', 'vk_size', 'proof_size', 'wall_prooftime', 'wall_verifytime'])
 df.to_csv(f'{WORKING_DIR}results.csv', index=False)
 
 
-#################### Things get slower from here
+#################### Things get slower from here and may just outright crash ####################
 
-
+# %% MobileNet V2
 model = torch.hub.load('pytorch/vision:v0.10.0', 'mobilenet_v2', pretrained=False)
 input_shape = (3, 224, 224)
+
 results_dataframe.append(
     prove_and_measure(model, input_shape, 'mobilenet_v2'))
 
 
+# %% NanoGPT
 
-
-
-
-
-# %% nanoGPT
 # We're gonna autogenerate the nanoGPT code from the ezkl repo
 # https://github.com/zkonduit/ezkl/blob/ddbcc1d2d8c010eac2812572b31d2d5c13d5e6f0/examples/onnx/nanoGPT/gen.py
 
@@ -256,4 +253,7 @@ os.system(f"mv input.json {WORKING_DIR}input_nanoGPT.json")
 prove_and_measure(None, None, 'nanoGPT') # You may need to manually go in and set calibrate to accuracy
 
 
-
+# Save the output
+df = pd.DataFrame(results_dataframe, columns=['model', 'pk_size', 'vk_size', 'proof_size', 'wall_prooftime', 'wall_verifytime'])
+df.to_csv(f'{WORKING_DIR}results.csv', index=False)
+# We can also manually look at the log files to see how they did
