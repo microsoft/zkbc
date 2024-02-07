@@ -3,8 +3,14 @@ import math, string, re, pickle, json, os, sys, datetime, itertools
 from collections import Counter
 from tqdm import tqdm
 
+# Parameter scaling exploration
+import matplotlib.gridspec as gridspec
+# sns.set_theme()
+import scienceplots
+plt.style.use('science')
+plt.rcParams.update({'text.usetex': True})
 
-results = pd.read_csv('model_size_results_compiled_Dec10th.csv')
+results = pd.read_csv('model_size_results_compiled_Jan8.csv')
 
 results['setup_time'] = results['pk_time'] + results['vk_time']
 
@@ -70,12 +76,7 @@ plt.plot(x, y, color='black', linestyle='--')
 
 # Production plots
 
-# Parameter scaling exploration
-import matplotlib.gridspec as gridspec
-# sns.set_theme()
-import scienceplots
-plt.style.use('science')
-plt.rcParams.update({'text.usetex': True})
+
 
 
 def fig_parameter_scaling(fig, save=True):
