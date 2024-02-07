@@ -13,6 +13,7 @@ src/experiments/model_size/proofs
 src/experiments/model_size/runfiles
 src/experiments/model_size/figs
 src/experiments/accuracy/figs
+src/experiments/*/*/*.log
 
 # Standard ignores
 .DS_Store
