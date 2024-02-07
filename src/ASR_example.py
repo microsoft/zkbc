@@ -58,9 +58,9 @@ print(f"Model has {macs} FLOPs and {params} parameters")
 # %% 2.1 Export the model and data for ezkl to use
 
 # opset_version = 10 will not work for the ASR models
-torch.onnx.export(model, input_features, "ASR/ASR.onnx", export_params=True, do_constant_folding=True, input_names = ['input'],output_names = ['output'],dynamic_axes={'input' : {0 : 'batch_size'},'output' : {0 : 'batch_size'}}, opset_version=16)
+torch.onnx.export(model, input_values, "ASR/ASR.onnx", export_params=True, do_constant_folding=True, input_names = ['input'],output_names = ['output'],dynamic_axes={'input' : {0 : 'batch_size'},'output' : {0 : 'batch_size'}}, opset_version=16)
 
-data_array = ((input_features).detach().numpy()).reshape([-1]).tolist()
+data_array = ((input_values).detach().numpy()).reshape([-1]).tolist()
 data = dict(input_data = [data_array],
             output_data = [((o).detach().numpy()).reshape([-1]).tolist() for o in predicted_ids])
 
@@ -79,6 +79,6 @@ ezkl.get_srs(SRS_PATH % logrows, "ASR/settings.json")
 
 os.system("ezkl compile-circuit -M ASR/ASR.onnx -S ASR/settings.json --compiled-circuit ASR/ASR.ezkl" + pipstd('setup'))
 os.system("ezkl gen-witness -M ASR/ASR.ezkl -D ASR/input.json --output ASR/witnessRandom.json" + pipstd('setup'))
-os.system("ezkl mock -M ASR/ASR.ezkl --witness ASR/witnessRandom.json" + pipstd('setup'))
 os.system(f"ezkl setup -M ASR/ASR.ezkl --srs-path={SRS_PATH % logrows} --vk-path=ASR/vk.key --pk-path=ASR/pk.key" + pipstd('setup'))
+os.system(f"ezkl prove -M ASR/ASR.ezkl --srs-path={SRS_PATH % logrows} --pk-path=ASR/pk.key --witness ASR/witnessRandom.json" + pipstd('setup'))
 
