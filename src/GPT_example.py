@@ -1,4 +1,4 @@
-import torch, json
+import torch, json, os
 import torch.nn as nn
 
 # %% 1. Choose your model (we're going through iterations on this)
@@ -36,13 +36,13 @@ import torch.nn as nn
 # tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neo-125M")
 
 
-# from transformers import GPTNeoXForCausalLM, AutoTokenizer
-# pretrained_model = GPTNeoXForCausalLM.from_pretrained(
-#   "EleutherAI/pythia-14m"
-# )
-# tokenizer = AutoTokenizer.from_pretrained(
-#   "EleutherAI/pythia-14m"
-# )
+from transformers import GPTNeoXForCausalLM, AutoTokenizer
+pretrained_model = GPTNeoXForCausalLM.from_pretrained(
+  "EleutherAI/pythia-14m"
+)
+tokenizer = AutoTokenizer.from_pretrained(
+  "EleutherAI/pythia-14m"
+)
 
 # from transformers import GPTNeoForCausalLM, AutoTokenizer
 # pretrained_model = GPTNeoForCausalLM.from_pretrained(
@@ -72,7 +72,7 @@ class GPTWrapper(nn.Module):
 model = GPTWrapper()
 
 # %% 1.3 Test everything is working okay
-input_text = "The goal of life is "
+input_text = "Hello, I am"
 # input_text = "The goal of life is [MASK]."
 inputs = tokenizer(input_text, return_tensors="pt")
 x = inputs["input_ids"]
@@ -80,6 +80,12 @@ output = model(x)
 next_token = tokenizer.decode(output)
 print('input: ', input_text, 'input shape: ', x.shape)
 print('next_token: ', next_token)
+
+# inputs = tokenizer("Hello, I am", return_tensors="pt")
+# pretrained_model(**inputs).logits[:,-1,:].argmax(dim=1)
+
+# tokens = pretrained_model.generate(**inputs)
+# tokenizer.decode(tokens[0])
 
 # Profile the model for the number of parameters and MACs (good to know)
 from thop import profile
@@ -94,7 +100,7 @@ pipstd = lambda fname: f" >> GPT2/logs/{fname}.log" if LOGGING else ""
 
 # %% 2. Export the model and data for ezkl to use
 from utils.export import export
-export(model, input_array=x, onnx_filename="GPT2/gpt2.onnx", input_filename="GPT2/input.json", reshape_input=False)
+export(model, input_array=x, onnx_filename="GPT2/gpt2.onnx", input_filename="GPT2/input.json", reshape_input=False, opset_version=17)
 
 # %% 3. Now we run the setup + calibration + witness generation
 import ezkl, os, json
