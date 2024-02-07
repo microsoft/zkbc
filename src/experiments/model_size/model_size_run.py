@@ -17,12 +17,14 @@ from models.VariableMLP import VariableMLP
 from models.VariableLSTM import VariableLSTM
 from models.SimpleTransformer import SimpleTransformer
 
-FILENAME ='model_size_results_Dec3rd.csv'
-LOGROWS_PATH = '../../../kzgs/kzg%d.srs' # You may need to generate this
+FILENAME ='model_size_results_Jan8.csv'
+LOGROWS_PATH = '../../../kzgs/kzg%d.srs'
 LOGGING = True
 pipstd = lambda fname: f" >> logs/{fname}.log" if LOGGING else ""
 os.makedirs('logs', exist_ok=True)
+os.makedirs('proofs', exist_ok=True)
 os.makedirs('runfiles', exist_ok=True)
+# print("Is GPU active?", os.environ['ENABLE_ICICLE_GPU'])
 
 def setup_and_prove(modeltype, nlayer):
     if modeltype == 'CNN':
@@ -70,13 +72,18 @@ def setup_and_prove(modeltype, nlayer):
     # Read in settings to determin SRS file size
     with open('settings.json', 'r') as f:
         logrows = json.load(f)['run_args']['logrows']
-    ezkl.get_srs(LOGROWS_PATH % logrows, 'settings.json')
+    
+    # We've already downloaded all of them
+    # ezkl.get_srs(LOGROWS_PATH % logrows, 'settings.json')
 
-    time_to_setup = timeit.timeit(lambda: os.system(f"ezkl setup -M runfiles/{modeltype+str(nlayer)}.ezkl --srs-path={LOGROWS_PATH % logrows} --vk-path=vk.key --pk-path=pk.key" + pipstd(f'{modeltype}_setup_{nlayer}')),  number=1)
+    time_to_setup = timeit.timeit(lambda: os.system(f"unset ENABLE_ICICLE_GPU && ezkl setup -M runfiles/{modeltype+str(nlayer)}.ezkl --srs-path={LOGROWS_PATH % logrows} --vk-path=vk.key --pk-path=pk.key" + pipstd(f'{modeltype}_setup_{nlayer}')),  number=1)
 
     os.makedirs('proofs', exist_ok=True)
     proof_file = f"proofs/{modeltype}_proof_{nlayer}.proof"
-    time_to_prove = timeit.timeit(lambda: os.system(f"ezkl prove -M runfiles/{modeltype+str(nlayer)}.ezkl --srs-path={LOGROWS_PATH % logrows} --witness runfiles/witness_{modeltype+str(nlayer)}.json --pk-path=pk.key --proof-path={proof_file}"+ pipstd(f'{modeltype}_prove_{nlayer}')), number=1)
+    # time_to_prove = timeit.timeit(lambda: os.system(f"ENABLE_ICICLE_GPU=true ezkl prove -M runfiles/{modeltype+str(nlayer)}.ezkl --srs-path={LOGROWS_PATH % logrows} --witness runfiles/witness_{modeltype+str(nlayer)}.json --pk-path=pk.key --proof-path={proof_file}"+ pipstd(f'{modeltype}_prove_{nlayer}')), number=1)
+    # check if proof_file exists
+    # if not os.path.exists(proof_file):
+    time_to_prove = timeit.timeit(lambda: os.system(f"unset ENABLE_ICICLE_GPU && ezkl prove -M runfiles/{modeltype+str(nlayer)}.ezkl --srs-path={LOGROWS_PATH % logrows} --witness runfiles/witness_{modeltype+str(nlayer)}.json --pk-path=pk.key --proof-path={proof_file}"+ pipstd(f'{modeltype}_prove_{nlayer}')), number=1)
 
     proof_size = os.path.getsize(proof_file)
     vk_size = os.path.getsize('vk.key')

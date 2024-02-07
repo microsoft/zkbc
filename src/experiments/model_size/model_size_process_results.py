@@ -30,8 +30,8 @@ for model_type in ['CNN', 'MLP', 'Attn']:
                     mock_time = float(re.search(r'\d+', line)[0])
             for line in lines:
                 if '{"run_args":' in line:
-                    settings = json.loads(line)
-                    scale, bits, logrows, num_constraints = settings['run_args']['scale'], settings['run_args']['bits'], settings['run_args']['logrows'], settings['num_constraints']
+                    settings = json.loads(line.split('[*]')[0])
+                    scale, bits, logrows, num_constraints = settings['run_args']['input_scale'], settings['run_args']['param_scale'], settings['run_args']['logrows'], settings['num_rows']
             
         file = file_options['setup']
         if file is None:
@@ -65,10 +65,10 @@ for model_type in ['CNN', 'MLP', 'Attn']:
 
         results.append([model_type, number, scale, bits, logrows, num_constraints, mock_time, vk_time, pk_time, wall_setup_time, proof_time, wall_prove_time])
     
-results_df = pd.DataFrame(results, columns=['model_type', 'nlayer', 'scale', 'bits', 'logrows', 'num_constraints', 'mock_time', 'vk_time', 'pk_time', 'wall_setup_time', 'proof_time', 'wall_prove_time'])
+results_df = pd.DataFrame(results, columns=['model_type', 'nlayer', 'scale', 'numrows', 'logrows', 'num_constraints', 'mock_time', 'vk_time', 'pk_time', 'wall_setup_time', 'proof_time', 'wall_prove_time'])
 
 
-results_python = pd.read_csv('model_size_results_Aug8th.csv')
+results_python = pd.read_csv('model_size_results_Jan8.csv')
 results_df = results_df.join(results_python.set_index(['modeltype', 'nlayer']), on=['model_type', 'nlayer'])
 
-results_df.to_csv('model_size_results_compiled_8Aug.csv', index=False)
+results_df.to_csv('model_size_results_compiled_Jan8.csv', index=False)
