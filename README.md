@@ -1,18 +1,20 @@
-# Zero Knowledge Benchmarking Checking (zkbc)
+# Verifiable Evaluation Attestations for Machine Learning Models
 
-This is an example codebase for the summer internship project by Tobin South at Microsoft Research in Redmond. This codebase is not a complete collection of work on the topic and more code will be made available after publication of an academic paper on the topic.
+This repository introduces a method for verifiable evaluation of machine learning models using zero-knowledge succinct non-interactive arguments of knowledge (zkSNARKs) via [ezkl](https://docs.ezkl.xyz/) toolkit. The approach enables transparent evaluation of closed-source ML models, providing computational proofs of a model's performance metrics without exposing its internal weights. This technique ensures evaluation integrity and promotes trust in ML applications, applicable to any standard neural network model across various real-world examples.
 
-## Abstract
+## The Paper
+The paper to accompany this repo can be found on [arxiv](https://arxiv.org/abs/2402.02675).
 
-In a world of increasing closed-source commercial machine learning models, statements of benchmark performance from model providers must be taken at face value. These benchmarks results – whether over task accuracies, fairness and bias evaluations, or safety checks – are traditionally impossible to verify by a model end-user without the costly or infeasible process of re-performing the benchmark on black-box model outputs. This work presents a method of verifiable model benchmarking using model inference through zkSNARKs. The resulting zero-knowledge computational proofs of model outputs over datasets can be packaged into verifiable attestations showing that models with fixed private weights achieved stated performance or fairness metrics over public inputs. These verifiable attestations can be performed on any standard neural network model with varying compute requirements. This presents a new transparency paradigm in verifiable benchmarking of private models. 
+### Full Abstract
+In a world of increasing closed-source commercial machine learning models, model evaluations from developers must be taken at face value. These benchmark results---whether over task accuracy, bias evaluations, or safety checks---are traditionally impossible to verify by a model end-user without the costly or impossible process of re-performing the benchmark on black-box model outputs. This work presents a method of verifiable model evaluation using model inference through zkSNARKs. The resulting zero-knowledge computational proofs of model outputs over datasets can be packaged into verifiable evaluation attestations showing that models with fixed private weights achieve stated performance or fairness metrics over public inputs. These verifiable attestations can be performed on any standard neural network model with varying compute requirements. For the first time, we demonstrate this across a sample of real-world models and highlight key challenges and design solutions. This presents a new transparency paradigm in the verifiable evaluation of private models. 
+
 
 ## Build and run
 
-1. Clone & build the rust version of _ezkl_ and then pyezkl. Follow the installation instructions in the README. `git clone https://github.com/zkonduit/ezkl.git`
-2. Generate structured reference strings (SRS) files in `/kzgs` corresponding to the model size you need (If you don't know this yet, come back after you've calibrated a model).
-3. Run the example files in `/src`
+1. For any of this t work you'll need to install and use the _ezkl_ CLI and python package. Details of how to install can be found at [`https://github.com/zkonduit/ezkl.git`](https://github.com/zkonduit/ezkl.git). The CLI or Python interfaces may be out of date in the latest versions, but the proof speed will be improved.
+2. Simple model examples can be found in `/src`. They run using the CLI and pytorch.
+3. Experiments to replicate the paper results can be found in `/src/experiments`.
 4. Choose a new model or dataset to run and follow the example process to get an onnx version of the model and generate inference proofs on it.
-
 
 ## Contributing
 
@@ -28,14 +30,13 @@ This project has adopted the [Microsoft Open Source Code of Conduct](https://ope
 For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
 contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
 
-## Trademarks
-
-This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft 
-trademarks or logos is subject to and must follow 
-[Microsoft's Trademark & Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks/usage/general).
-Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship.
-Any use of third-party trademarks or logos are subject to those third-party's policies.
-
-## Thanks and contribution
-
-Most of the work included in this repo was based on prior work in other repositories by Tobin South. Thanks goes to Shayla Nguyen for early idea incubation, dante & Jason Morton for support and collaboration, and Christian Paquin for mentorship.
+## Cite this work
+If you use this work or the ideas in it, please cite:
+```
+@misc{south2024verifiableevals,
+      title={Verifiable evaluations of machine learning models using zkSNARKs}, 
+      author={Tobin South and Alexander Camuto and Shrey Jain and Shayla Nguyen and Robert Mahari and Christian Paquin and Jason Morton and Alex 'Sandy' Pentland},
+      year={2024},
+      eprint={2402.02675}
+}
+```
